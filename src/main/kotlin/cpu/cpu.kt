@@ -139,8 +139,8 @@ interface Command {
 }
 
 data class CommandLdRR(
-    private val x: Reg8,
-    private val y: Reg8
+    val x: Reg8,
+    val y: Reg8
 ) : Command {
     override fun run(regs: Registers, memory: Memory) {
         val yVal = regs.gpr8(y).get()
@@ -150,7 +150,7 @@ data class CommandLdRR(
 }
 
 data class CommandInc(
-    private val r: Reg16
+    val r: Reg16
 ) : Command {
     override fun run(regs: Registers, memory: Memory) {
         val reg16 = regs.gpr16(r)
