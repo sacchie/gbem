@@ -58,6 +58,27 @@ internal class ParseTest {
     }
 
     @Test
+    fun parseLdABC() {
+        val cmd = parse(makeMemory(listOf(0b00001010)), 0)
+        assertThat(cmd).isInstanceOf(CommandLdABC::class.java)
+    }
+
+    @Test
+    fun parseLdADE() {
+        val cmd = parse(makeMemory(listOf(0b00011010)), 0)
+        assertThat(cmd).isInstanceOf(CommandLdADE::class.java)
+    }
+
+    @Test
+    fun parseLdAD16() {
+        val cmd = parse(makeMemory(listOf(0b11111010, 0x12, 0x34)), 0)
+        assertThat(cmd).isInstanceOf(CommandLdAD16::class.java)
+        (cmd as CommandLdAD16).let {
+            assertThat(it.d).isEqualTo(0x3412)
+        }
+    }
+
+    @Test
     fun parseIncR16() {
         val cmd = parse(makeMemory(listOf(0b00_01_0011)), 0)
         assertThat(cmd).isInstanceOf(CommandIncR16::class.java)

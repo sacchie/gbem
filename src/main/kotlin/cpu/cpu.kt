@@ -12,7 +12,7 @@ fun Int16.lo(): Int8 = (this and 0x000000FF)
 
 fun Int16.lo(lo: Int8): Int16 = (this and 0x0000FF00) + lo
 
-fun int16FromHiAndLo(hi: Int8, lo: Int8): Int16 = hi * 0xFF + lo
+fun int16FromHiAndLo(hi: Int8, lo: Int8): Int16 = hi.shl(8) + lo
 
 interface Memory {
     fun get8(addr: Int16): Int8
@@ -127,7 +127,6 @@ data class Registers(
 
     fun flag(): Flag = object : Flag {
         override fun isCarryOn(): Boolean = f.and(0b0001_0000) == 0b0001_0000
-
         override fun setCarry(on: Boolean) {
             f = if (on) f or 0b0001_0000 else f and 0b1110_1111
         }

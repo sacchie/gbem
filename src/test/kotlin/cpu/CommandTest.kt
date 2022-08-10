@@ -66,6 +66,35 @@ internal class CommandTest {
     }
 
     @Test
+    fun commandLdABC() {
+        val memory = makeMemory(mutableListOf(0x12))
+        val regs = Registers(
+            pc = 0, a = 0, f = 0, map = mutableMapOf(Reg16.BC to 0x0000))
+        CommandLdABC().run(regs, memory)
+        assertThat(regs.gpr8(Reg8.A).get()).isEqualTo(0x12)
+        assertThat(regs.pc().get()).isEqualTo(1)
+    }
+
+    @Test
+    fun commandLdADE() {
+        val memory = makeMemory(mutableListOf(0x12))
+        val regs = Registers(
+            pc = 0, a = 0, f = 0, map = mutableMapOf(Reg16.DE to 0x0000))
+        CommandLdADE().run(regs, memory)
+        assertThat(regs.gpr8(Reg8.A).get()).isEqualTo(0x12)
+        assertThat(regs.pc().get()).isEqualTo(1)
+    }
+
+    @Test
+    fun commandLdAD16() {
+        val memory = makeMemory(mutableListOf(0x12))
+        val regs = Registers(pc = 0, a = 0, f = 0, map = mutableMapOf())
+        CommandLdAD16(0x0000).run(regs, memory)
+        assertThat(regs.gpr8(Reg8.A).get()).isEqualTo(0x12)
+        assertThat(regs.pc().get()).isEqualTo(3)
+    }
+
+    @Test
     fun commandInc() {
         val regs = Registers(
             pc = 0, a = 0, f = 0, map = mutableMapOf(Reg16.BC to 0x0000))

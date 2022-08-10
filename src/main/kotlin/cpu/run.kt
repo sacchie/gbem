@@ -24,6 +24,18 @@ fun Command.run(regs: Registers, memory: Memory) {
             memory.set8(regs.gpr16(Reg16.HL).get(), d)
             regs.pc().inc(2)
         }
+        is CommandLdABC -> {
+            regs.gpr8(Reg8.A).set(memory.get8(regs.gpr16(Reg16.BC).get()))
+            regs.pc().inc()
+        }
+        is CommandLdADE -> {
+            regs.gpr8(Reg8.A).set(memory.get8(regs.gpr16(Reg16.DE).get()))
+            regs.pc().inc()
+        }
+        is CommandLdAD16 -> {
+            regs.gpr8(Reg8.A).set(memory.get8(d))
+            regs.pc().inc(3)
+        }
         is CommandIncR16 -> {
             val reg16 = regs.gpr16(r)
             val hi = reg16.get().hi()
