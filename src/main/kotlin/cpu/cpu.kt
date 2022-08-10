@@ -60,6 +60,7 @@ interface PC {
 
 // flag register
 interface Flag {
+    fun isCarryOn(): Boolean
     fun setCarry(on: Boolean)
 }
 
@@ -125,6 +126,8 @@ data class Registers(
     }
 
     fun flag(): Flag = object : Flag {
+        override fun isCarryOn(): Boolean = f.and(0b0001_0000).exists()
+
         override fun setCarry(on: Boolean) {
             f = if (on) f or 0b0001_0000 else f and 0b1110_1111
         }
