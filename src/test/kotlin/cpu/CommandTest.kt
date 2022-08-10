@@ -15,7 +15,7 @@ internal class CommandTest {
             a = 0,
             f = 0,
             map = mutableMapOf(Reg16.BC to 0x0000, Reg16.DE to 0x0002))
-        CommandLdRR(Reg8.C, Reg8.E).run(regs, makeMemory(listOf()))
+        CommandLdR8R8(Reg8.C, Reg8.E).run(regs, makeMemory(listOf()))
         assertEquals(0x02, regs.gpr8(Reg8.C).get())
         assertEquals(1, regs.pc().get())
     }
@@ -26,7 +26,7 @@ internal class CommandTest {
             a = 0,
             f = 0,
             map = mutableMapOf(Reg16.BC to 0x0000, Reg16.DE to 0x0002))
-        CommandLdRR(Reg8.B, Reg8.E).run(regs, makeMemory(listOf()))
+        CommandLdR8R8(Reg8.B, Reg8.E).run(regs, makeMemory(listOf()))
         assertEquals(0x02, regs.gpr8(Reg8.B).get())
         assertEquals(1, regs.pc().get())
     }
@@ -37,7 +37,7 @@ internal class CommandTest {
             a = 0,
             f = 0,
             map = mutableMapOf(Reg16.BC to 0x0000))
-        CommandInc(Reg16.BC).run(regs, makeMemory(listOf()))
+        CommandIncR16(Reg16.BC).run(regs, makeMemory(listOf()))
         assertEquals(0x0001, regs.gpr16(Reg16.BC).get())
     }
 
@@ -47,7 +47,7 @@ internal class CommandTest {
             a = 0,
             f = 0,
             map = mutableMapOf(Reg16.BC to 0xFFFF))
-        CommandInc(Reg16.BC).run(regs, makeMemory(listOf()))
+        CommandIncR16(Reg16.BC).run(regs, makeMemory(listOf()))
         assertEquals(0x0000, regs.gpr8(Reg8.B).get())
         assertEquals(true, regs.flag().isCarryOn())
     }

@@ -12,15 +12,15 @@ internal class ParseTest {
     @Test
     fun `op_LD`() {
         val cmd = parse(makeMemory(listOf(0b01_001_011)), 0)
-        assert(cmd is CommandLdRR)
-        assertEquals(Reg8.C, (cmd as CommandLdRR).x)
-        assertEquals(Reg8.E, (cmd as CommandLdRR).y)
+        assert(cmd is CommandLdR8R8)
+        assertEquals(Reg8.C, (cmd as CommandLdR8R8).x)
+        assertEquals(Reg8.E, (cmd as CommandLdR8R8).y)
     }
 
     @Test
     fun `op_INC`() {
         val cmd = parse(makeMemory(listOf(0b00_01_0011)), 0)
-        assert(cmd is CommandInc)
-        assertEquals(Reg16.DE, (cmd as CommandInc).r)
+        assert(cmd is CommandIncR16)
+        assertEquals(Reg16.DE, (cmd as CommandIncR16).r)
     }
 }

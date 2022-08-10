@@ -4,8 +4,6 @@ typealias Int8 = Int
 
 typealias Int16 = Int
 
-fun Int8.exists() = this and 0x000000FF != 0
-
 fun Int16.hi(): Int8 = this.shr(8)
 
 fun Int16.hi(hi: Int8): Int16 = (this and 0x000000FF) + hi.shl(8)
@@ -55,7 +53,7 @@ interface GPR<T> {
 // program counter
 interface PC {
     fun get(): Int16
-    fun inc()
+    fun inc(diff: Int16 = 1)
 }
 
 // flag register
@@ -122,11 +120,11 @@ data class Registers(
 
     fun pc(): PC = object : PC {
         override fun get(): Int16 = pc
-        override fun inc() { pc++ }
+        override fun inc(diff: Int16) { pc += diff }
     }
 
     fun flag(): Flag = object : Flag {
-        override fun isCarryOn(): Boolean = f.and(0b0001_0000).exists()
+        override fun isCarryOn(): Boolean = f.and(0b0001_0000) == 0b0001_0000
 
         override fun setCarry(on: Boolean) {
             f = if (on) f or 0b0001_0000 else f and 0b1110_1111
@@ -138,10 +136,7 @@ interface Command {
     fun run(regs: Registers, memory: Memory)
 }
 
-data class CommandLdRR(
-    val x: Reg8,
-    val y: Reg8
-) : Command {
+data class CommandLdR8R8(val x: Reg8, val y: Reg8) : Command {
     override fun run(regs: Registers, memory: Memory) {
         val yVal = regs.gpr8(y).get()
         regs.gpr8(x).set(yVal)
@@ -149,9 +144,22 @@ data class CommandLdRR(
     }
 }
 
-data class CommandInc(
-    val r: Reg16
-) : Command {
+data class CommandLdR8HL(val r: Reg8) : Command {
+    override fun run(regs: Registers, memory: Memory) {
+        val memVal = memory.get8(regs.gpr16(Reg16.HL).get())
+        regs.gpr8(r).set(memVal)
+        regs.pc().inc()
+    }
+}
+
+data class CommandLdR8D8(val r: Reg8, val d: Int8) : Command {
+    override fun run(regs: Registers, memory: Memory) {
+        regs.gpr8(r).set(d)
+        regs.pc().inc(2)
+    }
+}
+
+data class CommandIncR16(val r: Reg16) : Command {
     override fun run(regs: Registers, memory: Memory) {
         val reg16 = regs.gpr16(r)
         val hi = reg16.get().hi()
@@ -171,19 +179,31 @@ data class CommandInc(
 
 fun parse(memory: Memory, address: Int16): Command {
     val opcode = memory.get8(address)
-    if (opcode.and(0b01_000_000).exists()) {
-        // LD x(r8) y(r8)
+    if (opcode.and(0b11_000_000) == 0b01_000_000) {
+        // LD r8 HL/LD r8 r8
         val x = Reg8.fromNum(opcode.and(0b00_111_000).shr(3))
-        val y = Reg8.fromNum(opcode.and(0b00_000_111))
-        if (x != null && y != null) {
-            return CommandLdRR(x, y)
+        val yNum = opcode.and(0b00_000_111)
+        if (x != null && yNum == 0b0000_0110) {
+            return CommandLdR8HL(x);
         }
-    } else if (opcode.and(0b00_00_0011).exists()) {
+
+        val y = Reg8.fromNum(yNum)
+        if (x != null && y != null) {
+            return CommandLdR8R8(x, y)
+        }
+    } else if (opcode.and(0b11_000_111) == 0b00_000_110) {
+        // LD r8 d8
+        val r = Reg8.fromNum(opcode.and(0b00_111_000).shr(3))
+        val d = memory.get8(address + 1)
+        if (r != null) {
+            return CommandLdR8D8(r, d)
+        }
+    } else if (opcode.and(0b11_00_1111) == 0b00_00_0011) {
         // INC r16
         val r = Reg16.fromNum(opcode.and(0b00_11_0000).shr(4))!!
-        return CommandInc(r)
+        return CommandIncR16(r)
     }
-    throw RuntimeException()
+    throw IllegalArgumentException(opcode.toString())
 }
 
 fun step(regs: Registers, memory: Memory) {
