@@ -134,41 +134,58 @@ data class Registers(
     }
 }
 
-fun ld(x: Reg8, y: Reg8, regs: Registers) {
-    val yVal = regs.gpr8(y).get()
-    regs.gpr8(x).set(yVal)
-    regs.pc().inc()
+interface Command {
+    fun run(regs: Registers, memory: Memory)
 }
 
-fun inc(r: Reg16, regs: Registers) {
-    val reg16 = regs.gpr16(r)
-    val hi = reg16.get().hi()
-    val lo = reg16.get().lo()
-
-    if (lo != 0xFF) {
-        reg16.set(int16FromHiAndLo(hi, lo + 1))
-    } else if (hi != 0xFF) {
-        reg16.set(int16FromHiAndLo(hi + 1, 0))
-    } else {
-        reg16.set(int16FromHiAndLo(0, 0))
-        regs.flag().setCarry(true)
+data class CommandLdRR(
+    private val x: Reg8,
+    private val y: Reg8
+) : Command {
+    override fun run(regs: Registers, memory: Memory) {
+        val yVal = regs.gpr8(y).get()
+        regs.gpr8(x).set(yVal)
+        regs.pc().inc()
     }
-    regs.pc().inc()
 }
 
-fun step(regs: Registers, memory: Memory) {
-    val address: Int16 = regs.pc().get()
+data class CommandInc(
+    private val r: Reg16
+) : Command {
+    override fun run(regs: Registers, memory: Memory) {
+        val reg16 = regs.gpr16(r)
+        val hi = reg16.get().hi()
+        val lo = reg16.get().lo()
+
+        if (lo != 0xFF) {
+            reg16.set(int16FromHiAndLo(hi, lo + 1))
+        } else if (hi != 0xFF) {
+            reg16.set(int16FromHiAndLo(hi + 1, 0))
+        } else {
+            reg16.set(int16FromHiAndLo(0, 0))
+            regs.flag().setCarry(true)
+        }
+        regs.pc().inc()
+    }
+}
+
+fun parse(memory: Memory, address: Int16): Command {
     val opcode = memory.get8(address)
     if (opcode.and(0b01_000_000).exists()) {
         // LD x(r8) y(r8)
         val x = Reg8.fromNum(opcode.and(0b00_111_000).shr(3))
         val y = Reg8.fromNum(opcode.and(0b00_000_111))
         if (x != null && y != null) {
-            ld(x, y, regs)
+            return CommandLdRR(x, y)
         }
     } else if (opcode.and(0b00_00_0011).exists()) {
         // INC r16
         val r = Reg16.fromNum(opcode.and(0b00_11_0000).shr(4))!!
-        inc(r, regs)
+        return CommandInc(r)
     }
+    throw RuntimeException()
+}
+
+fun step(regs: Registers, memory: Memory) {
+    parse(memory, regs.pc().get()).run(regs, memory)
 }
