@@ -1,6 +1,6 @@
 package cpu
 
-import org.junit.jupiter.api.Assertions.*
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 internal class CommandTest {
@@ -16,10 +16,11 @@ internal class CommandTest {
             f = 0,
             map = mutableMapOf(Reg16.BC to 0x0000, Reg16.DE to 0x0002))
         CommandLdR8R8(Reg8.C, Reg8.E).run(regs, makeMemory(listOf()))
-        assertEquals(0x02, regs.gpr8(Reg8.C).get())
-        assertEquals(1, regs.pc().get())
+        assertThat(regs.gpr8(Reg8.C).get()).isEqualTo(0x02)
+        assertThat(regs.pc().get()).isEqualTo(1)
     }
 
+    @Test
     fun `cmd_LD_hi_bit`() {
         val regs = Registers(
             pc = 0,
@@ -27,10 +28,11 @@ internal class CommandTest {
             f = 0,
             map = mutableMapOf(Reg16.BC to 0x0000, Reg16.DE to 0x0002))
         CommandLdR8R8(Reg8.B, Reg8.E).run(regs, makeMemory(listOf()))
-        assertEquals(0x02, regs.gpr8(Reg8.B).get())
-        assertEquals(1, regs.pc().get())
+        assertThat(regs.gpr8(Reg8.B).get()).isEqualTo(0x02)
+        assertThat(regs.pc().get()).isEqualTo(1)
     }
 
+    @Test
     fun `cmd_INC`() {
         val regs = Registers(
             pc = 0,
@@ -38,9 +40,10 @@ internal class CommandTest {
             f = 0,
             map = mutableMapOf(Reg16.BC to 0x0000))
         CommandIncR16(Reg16.BC).run(regs, makeMemory(listOf()))
-        assertEquals(0x0001, regs.gpr16(Reg16.BC).get())
+        assertThat(regs.gpr16(Reg16.BC).get()).isEqualTo(0x0001)
     }
 
+    @Test
     fun `cmd_INC_carry`() {
         val regs = Registers(
             pc = 0,
@@ -48,7 +51,7 @@ internal class CommandTest {
             f = 0,
             map = mutableMapOf(Reg16.BC to 0xFFFF))
         CommandIncR16(Reg16.BC).run(regs, makeMemory(listOf()))
-        assertEquals(0x0000, regs.gpr8(Reg8.B).get())
-        assertEquals(true, regs.flag().isCarryOn())
+        assertThat(regs.gpr8(Reg8.B).get()).isEqualTo(0x0000)
+        assertThat(regs.flag().isCarryOn()).isTrue
     }
 }

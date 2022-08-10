@@ -1,6 +1,6 @@
 package cpu
 
-import org.junit.jupiter.api.Assertions.*
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 internal class ParseTest {
@@ -12,15 +12,19 @@ internal class ParseTest {
     @Test
     fun `op_LD`() {
         val cmd = parse(makeMemory(listOf(0b01_001_011)), 0)
-        assert(cmd is CommandLdR8R8)
-        assertEquals(Reg8.C, (cmd as CommandLdR8R8).x)
-        assertEquals(Reg8.E, (cmd as CommandLdR8R8).y)
+        assertThat(cmd).isInstanceOf(CommandLdR8R8::class.java)
+        (cmd as CommandLdR8R8).let {
+            assertThat(it.x).isEqualTo(Reg8.C)
+            assertThat(it.y).isEqualTo(Reg8.E)
+        }
     }
 
     @Test
     fun `op_INC`() {
         val cmd = parse(makeMemory(listOf(0b00_01_0011)), 0)
-        assert(cmd is CommandIncR16)
-        assertEquals(Reg16.DE, (cmd as CommandIncR16).r)
+        assertThat(cmd).isInstanceOf(CommandIncR16::class.java)
+        (cmd as CommandIncR16).let {
+            assertThat(it.r).isEqualTo(Reg16.DE)
+        }
     }
 }
