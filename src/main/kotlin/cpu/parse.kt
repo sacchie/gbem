@@ -22,24 +22,28 @@ fun parse(memory: Memory, address: Int16): Command {
         if (x != null && y != null) {
             return CommandLdR8R8(x, y)
         }
-    } else if (opcode.and(0b11_000_111) == 0b00_000_110) {
+    }
+    if (opcode.and(0b11_000_111) == 0b00_000_110) {
         // LD r8 d8
         val r = Reg8.fromNum(opcode.and(0b00_111_000).shr(3))
         val d = memory.get8(address + 1)
         if (r != null) {
             return CommandLdR8D8(r, d)
         }
-    } else if (opcode.and(0b11111_000) == 0b01110_000) {
+    }
+    if (opcode.and(0b11111_000) == 0b01110_000) {
         // LD HL r8
         val r = Reg8.fromNum(opcode.and(0b00000_111))
         if (r != null) {
             return CommandLdHLR8(r)
         }
-    } else if (opcode == 0b00110110) {
+    }
+    if (opcode == 0b00110110) {
         // LD HL d8
         val d = memory.get8(address + 1)
         return CommandLdHLD8(d)
-    } else if (opcode.and(0b11_00_1111) == 0b00_00_0011) {
+    }
+    if (opcode.and(0b11_00_1111) == 0b00_00_0011) {
         // INC r16
         val r = Reg16.fromNum(opcode.and(0b00_11_0000).shr(4))!!
         return CommandIncR16(r)

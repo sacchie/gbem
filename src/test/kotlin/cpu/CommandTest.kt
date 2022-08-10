@@ -19,7 +19,7 @@ internal class CommandTest {
     }
 
     @Test
-    fun commandLdR8R8_LD_hi_bit() {
+    fun commandLdR8R8_hi_bit() {
         val regs = Registers(
             pc = 0, a = 0, f = 0, map = mutableMapOf(Reg16.BC to 0x0000, Reg16.DE to 0x0002))
         CommandLdR8R8(Reg8.B, Reg8.E).run(regs, makeMemory(mutableListOf()))
