@@ -16,6 +16,8 @@ fun int16FromHiAndLo(hi: Int8, lo: Int8): Int16 = hi * 0xFF + lo
 
 interface Memory {
     fun get8(addr: Int16): Int8
+
+    fun set8(addr: Int16, int8: Int8)
 }
 
 
@@ -144,6 +146,13 @@ data class CommandLdR8R8(val x: Reg8, val y: Reg8) : Command {
     }
 }
 
+data class CommandLdR8D8(val r: Reg8, val d: Int8) : Command {
+    override fun run(regs: Registers, memory: Memory) {
+        regs.gpr8(r).set(d)
+        regs.pc().inc(2)
+    }
+}
+
 data class CommandLdR8HL(val r: Reg8) : Command {
     override fun run(regs: Registers, memory: Memory) {
         val memVal = memory.get8(regs.gpr16(Reg16.HL).get())
@@ -152,9 +161,16 @@ data class CommandLdR8HL(val r: Reg8) : Command {
     }
 }
 
-data class CommandLdR8D8(val r: Reg8, val d: Int8) : Command {
+data class CommandLdHLR8(val r: Reg8) : Command {
     override fun run(regs: Registers, memory: Memory) {
-        regs.gpr8(r).set(d)
+        memory.set8(regs.gpr16(Reg16.HL).get(), regs.gpr8(r).get())
+        regs.pc().inc()
+    }
+}
+
+data class CommandLdHLD8(val d: Int8) : Command {
+    override fun run(regs: Registers, memory: Memory) {
+        memory.set8(regs.gpr16(Reg16.HL).get(), d)
         regs.pc().inc(2)
     }
 }
@@ -198,6 +214,16 @@ fun parse(memory: Memory, address: Int16): Command {
         if (r != null) {
             return CommandLdR8D8(r, d)
         }
+    } else if (opcode.and(0b11111_000) == 0b01110_000) {
+        // LD HL r8
+        val r = Reg8.fromNum(opcode.and(0b00000_111))
+        if (r != null) {
+            return CommandLdHLR8(r)
+        }
+    } else if (opcode == 0b00110110) {
+        // LD HL d8
+        val d = memory.get8(address + 1)
+        return CommandLdHLD8(d)
     } else if (opcode.and(0b11_00_1111) == 0b00_00_0011) {
         // INC r16
         val r = Reg16.fromNum(opcode.and(0b00_11_0000).shr(4))!!

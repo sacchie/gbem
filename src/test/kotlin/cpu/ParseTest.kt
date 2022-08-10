@@ -7,10 +7,11 @@ internal class ParseTest {
 
     private fun makeMemory(vals: List<Int8>) = object : Memory {
         override fun get8(addr: Int16): Int8 = vals[addr]
+        override fun set8(addr: Int16, int8: Int8) { throw UnsupportedOperationException() }
     }
 
     @Test
-    fun `op_LD`() {
+    fun parseLdR8R8() {
         val cmd = parse(makeMemory(listOf(0b01_001_011)), 0)
         assertThat(cmd).isInstanceOf(CommandLdR8R8::class.java)
         (cmd as CommandLdR8R8).let {
@@ -20,7 +21,7 @@ internal class ParseTest {
     }
 
     @Test
-    fun `op_INC`() {
+    fun parseIncR16() {
         val cmd = parse(makeMemory(listOf(0b00_01_0011)), 0)
         assertThat(cmd).isInstanceOf(CommandIncR16::class.java)
         (cmd as CommandIncR16).let {
