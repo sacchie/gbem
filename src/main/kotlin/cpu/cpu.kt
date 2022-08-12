@@ -6,11 +6,7 @@ typealias Int16 = Int
 
 fun Int16.hi(): Int8 = this.shr(8)
 
-fun Int16.hi(hi: Int8): Int16 = (this and 0x000000FF) + hi.shl(8)
-
 fun Int16.lo(): Int8 = (this and 0x000000FF)
-
-fun Int16.lo(lo: Int8): Int16 = (this and 0x0000FF00) + lo
 
 fun int16FromHiAndLo(hi: Int8, lo: Int8): Int16 = hi.shl(8) + lo
 
@@ -18,32 +14,6 @@ interface Memory {
     fun get8(addr: Int16): Int8
 
     fun set8(addr: Int16, int8: Int8)
-}
-
-
-enum class Reg16(val num: Int8) {
-    BC(0),
-    DE(1),
-    HL(2),
-    SP(3);
-
-    companion object {
-        fun fromNum(num: Int8): Reg16? = Reg16.values().find { it.num == num }
-    }
-}
-
-enum class Reg8(val num: Int8) {
-    B(0),
-    C(1),
-    D(2),
-    E(3),
-    H(4),
-    L(5),
-    A(7);
-
-    companion object {
-        fun fromNum(num: Int8): Reg8? = Reg8.values().find { it.num == num }
-    }
 }
 
 // general-purpose register
@@ -65,70 +35,102 @@ interface Flag {
 }
 
 data class Registers(
-    var pc: Int16,
-    var a: Int8,
-    var f: Int8,
-    val map: MutableMap<Reg16, Int16>,
+    private var pc: Int16 = 0,
+    private var af: Int16 = 0,
+    private var bc: Int16 = 0,
+    private var de: Int16 = 0,
+    private var hl: Int16 = 0,
+    private var sp: Int16 = 0,
 ) {
-    fun gpr16(reg16: Reg16): GPR<Int16> = object : GPR<Int16> {
-        override fun get(): Int16 = map[reg16]!!
-        override fun set(x: Int16) { map[reg16] = x }
+    fun bc(): GPR<Int16> = object : GPR<Int16> {
+        override fun get(): Int16 = bc
+        override fun set(x: Int16) {
+            bc = x
+        }
     }
 
-    fun gpr8(reg8: Reg8): GPR<Int8> = when (reg8) {
-        Reg8.B -> object : GPR<Int8> {
-            override fun get(): Int8 = map[Reg16.BC]!!.hi()
-            override fun set(x: Int8) {
-                map[Reg16.BC] = map[Reg16.BC]!!.hi(x)
-            }
+    fun de(): GPR<Int16> = object : GPR<Int16> {
+        override fun get(): Int16 = de
+        override fun set(x: Int16) {
+            de = x
         }
-        Reg8.C -> object : GPR<Int8> {
-            override fun get(): Int8 = map[Reg16.BC]!!.lo()
-            override fun set(x: Int8) {
-                map[Reg16.BC] = map[Reg16.BC]!!.lo(x)
-            }
+    }
+
+    fun hl(): GPR<Int16> = object : GPR<Int16> {
+        override fun get(): Int16 = hl
+        override fun set(x: Int16) {
+            hl = x
         }
-        Reg8.D -> object : GPR<Int8> {
-            override fun get(): Int8 = map[Reg16.DE]!!.hi()
-            override fun set(x: Int8) {
-                map[Reg16.DE] = map[Reg16.DE]!!.hi(x)
-            }
+    }
+
+    fun sp(): GPR<Int16> = object : GPR<Int16> {
+        override fun get(): Int16 = sp
+        override fun set(x: Int16) {
+            sp = x
         }
-        Reg8.E -> object : GPR<Int8> {
-            override fun get(): Int8 = map[Reg16.DE]!!.lo()
-            override fun set(x: Int8) {
-                map[Reg16.DE] = map[Reg16.DE]!!.lo(x)
-            }
+    }
+
+    fun a(): GPR<Int8> = object : GPR<Int8> {
+        override fun get(): Int8 = af.hi()
+        override fun set(x: Int16) {
+            af = int16FromHiAndLo(x, af.lo())
         }
-        Reg8.H -> object : GPR<Int8> {
-            override fun get(): Int8 = map[Reg16.HL]!!.hi()
-            override fun set(x: Int8) {
-                map[Reg16.HL] = map[Reg16.HL]!!.hi(x)
-            }
+    }
+
+    fun b(): GPR<Int8> = object : GPR<Int8> {
+        override fun get(): Int8 = bc.hi()
+        override fun set(x: Int8) {
+            bc = int16FromHiAndLo(x, bc.lo())
         }
-        Reg8.L -> object : GPR<Int8> {
-            override fun get(): Int8 = map[Reg16.HL]!!.lo()
-            override fun set(x: Int8) {
-                map[Reg16.HL] = map[Reg16.HL]!!.lo(x)
-            }
+    }
+
+    fun c(): GPR<Int8> = object : GPR<Int8> {
+        override fun get(): Int8 = bc.lo()
+        override fun set(x: Int8) {
+            bc = int16FromHiAndLo(bc.hi(), x)
         }
-        Reg8.A -> object : GPR<Int8> {
-            override fun get(): Int8 = a
-            override fun set(x: Int8) {
-                a = x
-            }
+    }
+
+    fun d(): GPR<Int8> = object : GPR<Int8> {
+        override fun get(): Int8 = de.hi()
+        override fun set(x: Int8) {
+            de = int16FromHiAndLo(x, de.lo())
+        }
+    }
+
+    fun e(): GPR<Int8> = object : GPR<Int8> {
+        override fun get(): Int8 = de.lo()
+        override fun set(x: Int8) {
+            de = int16FromHiAndLo(de.hi(), x)
+        }
+    }
+
+    fun h(): GPR<Int8> = object : GPR<Int8> {
+        override fun get(): Int8 = hl.hi()
+        override fun set(x: Int8) {
+            hl = int16FromHiAndLo(x, hl.lo())
+        }
+    }
+
+    fun l(): GPR<Int8> = object : GPR<Int8> {
+        override fun get(): Int8 = hl.lo()
+        override fun set(x: Int8) {
+            hl = int16FromHiAndLo(hl.hi(), x)
         }
     }
 
     fun pc(): PC = object : PC {
         override fun get(): Int16 = pc
-        override fun inc(diff: Int16) { pc += diff }
+        override fun inc(diff: Int16) {
+            pc += diff
+        }
     }
 
     fun flag(): Flag = object : Flag {
-        override fun isCarryOn(): Boolean = f.and(0b0001_0000) == 0b0001_0000
+        override fun isCarryOn(): Boolean = af.lo().and(0b0001_0000) == 0b0001_0000
         override fun setCarry(on: Boolean) {
-            f = if (on) f or 0b0001_0000 else f and 0b1110_1111
+            val f = af.lo()
+            af = int16FromHiAndLo(af.hi(), if (on) f or 0b0001_0000 else f and 0b1110_1111)
         }
     }
 }

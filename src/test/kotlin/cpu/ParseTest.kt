@@ -15,8 +15,8 @@ internal class ParseTest {
         val cmd = parse(makeMemory(listOf(0b01_001_011)), 0)
         assertThat(cmd).isInstanceOf(CommandLdR8R8::class.java)
         (cmd as CommandLdR8R8).let {
-            assertThat(it.x).isEqualTo(Reg8.C)
-            assertThat(it.y).isEqualTo(Reg8.E)
+            assertThat(it.x).isEqualTo(RegEnum8.C)
+            assertThat(it.y).isEqualTo(RegEnum8.E)
         }
     }
 
@@ -25,7 +25,7 @@ internal class ParseTest {
         val cmd = parse(makeMemory(listOf(0b00_001_110, 0x12)), 0)
         assertThat(cmd).isInstanceOf(CommandLdR8D8::class.java)
         (cmd as CommandLdR8D8).let {
-            assertThat(it.r).isEqualTo(Reg8.C)
+            assertThat(it.r).isEqualTo(RegEnum8.C)
             assertThat(it.d).isEqualTo(0x12)
         }
     }
@@ -35,7 +35,7 @@ internal class ParseTest {
         val cmd = parse(makeMemory(listOf(0b01_001_110)), 0)
         assertThat(cmd).isInstanceOf(CommandLdR8HL::class.java)
         (cmd as CommandLdR8HL).let {
-            assertThat(it.r).isEqualTo(Reg8.C)
+            assertThat(it.r).isEqualTo(RegEnum8.C)
         }
     }
 
@@ -44,7 +44,7 @@ internal class ParseTest {
         val cmd = parse(makeMemory(listOf(0b01110_001)), 0)
         assertThat(cmd).isInstanceOf(CommandLdHLR8::class.java)
         (cmd as CommandLdHLR8).let {
-            assertThat(it.r).isEqualTo(Reg8.C)
+            assertThat(it.r).isEqualTo(RegEnum8.C)
         }
     }
 
@@ -83,7 +83,7 @@ internal class ParseTest {
         val cmd = parse(makeMemory(listOf(0b00_01_0011)), 0)
         assertThat(cmd).isInstanceOf(CommandIncR16::class.java)
         (cmd as CommandIncR16).let {
-            assertThat(it.r).isEqualTo(Reg16.DE)
+            assertThat(it.r).isEqualTo(RegEnum16.DE)
         }
     }
 }

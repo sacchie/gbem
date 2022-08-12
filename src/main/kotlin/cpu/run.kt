@@ -1,5 +1,22 @@
 package cpu
 
+fun Registers.gpr8(r: RegEnum8): GPR<Int8> = when (r) {
+    RegEnum8.B -> b()
+    RegEnum8.C -> c()
+    RegEnum8.D -> d()
+    RegEnum8.E -> e()
+    RegEnum8.H -> h()
+    RegEnum8.L -> l()
+    RegEnum8.A -> a()
+}
+
+fun Registers.gpr16(r: RegEnum16): GPR<Int16> = when (r) {
+    RegEnum16.BC -> bc()
+    RegEnum16.DE -> de()
+    RegEnum16.HL -> hl()
+    RegEnum16.SP -> sp()
+}
+
 fun Command.run(regs: Registers, memory: Memory) {
     when (this) {
         is CommandLdR8R8 -> {
@@ -12,28 +29,27 @@ fun Command.run(regs: Registers, memory: Memory) {
             regs.pc().inc(2)
         }
         is CommandLdR8HL -> {
-            val memVal = memory.get8(regs.gpr16(Reg16.HL).get())
-            regs.gpr8(r).set(memVal)
+            regs.gpr8(r).set(memory.get8(regs.hl().get()))
             regs.pc().inc()
         }
         is CommandLdHLR8 -> {
-            memory.set8(regs.gpr16(Reg16.HL).get(), regs.gpr8(r).get())
+            memory.set8(regs.hl().get(), regs.gpr8(r).get())
             regs.pc().inc()
         }
         is CommandLdHLD8 -> {
-            memory.set8(regs.gpr16(Reg16.HL).get(), d)
+            memory.set8(regs.hl().get(), d)
             regs.pc().inc(2)
         }
         is CommandLdABC -> {
-            regs.gpr8(Reg8.A).set(memory.get8(regs.gpr16(Reg16.BC).get()))
+            regs.a().set(memory.get8(regs.bc().get()))
             regs.pc().inc()
         }
         is CommandLdADE -> {
-            regs.gpr8(Reg8.A).set(memory.get8(regs.gpr16(Reg16.DE).get()))
+            regs.a().set(memory.get8(regs.de().get()))
             regs.pc().inc()
         }
         is CommandLdAD16 -> {
-            regs.gpr8(Reg8.A).set(memory.get8(d))
+            regs.a().set(memory.get8(d))
             regs.pc().inc(3)
         }
         is CommandIncR16 -> {
