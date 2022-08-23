@@ -34,6 +34,20 @@ data class OpLdHLD8(val d: Int8): Op
 class OpLdABC: Op
 class OpLdADE: Op
 data class OpLdAD16(val d: Int16): Op
+class OpLdBCA: Op
+class OpLdDEA: Op
+data class OpLdD16A(val d: Int16): Op
+data class OpLdFromIoPort(val d: Int8): Op
+data class OpLdToIoPort(val d: Int8): Op
+class OpLdFromIoPortC: Op
+class OpLdToIoPortC: Op
+class OpLdiHLA: Op
+class OpLdiAHL: Op
+class OpLddHLA: Op
+class OpLddAHL: Op
+data class OpLdR16D16(val r: RegEnum16, val d: Int16): Op
+data class OpLdD16SP(val d: Int16): Op
+class OpLdSPHL: Op
 data class OpIncR16(val r: RegEnum16): Op
 
 

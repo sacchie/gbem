@@ -14,12 +14,16 @@ interface Memory {
     fun get8(addr: Int16): Int8
 
     fun set8(addr: Int16, int8: Int8)
+
+    fun set16(addr: Int16, int16: Int16)
 }
 
 // general-purpose register
 interface GPR<T> {
     fun get(): T
     fun set(x: T)
+
+    fun update(fn: (x: T) -> T) { set(fn(get())) }
 }
 
 // program counter

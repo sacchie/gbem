@@ -52,6 +52,67 @@ fun Op.run(regs: Registers, memory: Memory) {
             regs.a().set(memory.get8(d))
             regs.pc().inc(3)
         }
+        is OpLdBCA -> {
+            memory.set8(regs.bc().get(), regs.a().get())
+            regs.pc().inc()
+        }
+        is OpLdDEA -> {
+            memory.set8(regs.de().get(), regs.a().get())
+            regs.pc().inc()
+        }
+        is OpLdD16A -> {
+            memory.set8(d, regs.a().get())
+            regs.pc().inc(3)
+        }
+        is OpLdFromIoPort -> {
+            regs.a().set(memory.get8(0xFF00 + d))
+            regs.pc().inc(2)
+        }
+        is OpLdToIoPort -> {
+            memory.set8(0xFF00 + d, regs.a().get())
+            regs.pc().inc(2)
+        }
+        is OpLdFromIoPortC -> {
+            regs.a().set(memory.get8(0xFF00 + regs.c().get()))
+            regs.pc().inc()
+        }
+        is OpLdToIoPortC -> {
+            memory.set8(0xFF00 + regs.c().get(), regs.a().get())
+            regs.pc().inc()
+        }
+        is OpLdiHLA -> {
+            memory.set8(regs.hl().get(), regs.a().get())
+            regs.hl().update { (it + 1) % 0x10000 }
+            regs.pc().inc()
+        }
+        is OpLdiAHL -> {
+            regs.a().set(memory.get8(regs.hl().get()))
+            regs.hl().update { (it + 1) % 0x10000 }
+            regs.pc().inc()
+        }
+        is OpLddHLA -> {
+            memory.set8(regs.hl().get(), regs.a().get())
+            regs.hl().update { if (it == 0) 0xFFFF else it - 1 }
+            regs.pc().inc()
+        }
+        is OpLddAHL -> {
+            regs.a().set(memory.get8(regs.hl().get()))
+            regs.hl().update { if (it == 0) 0xFFFF else it - 1 }
+            regs.pc().inc()
+        }
+        is OpLdR16D16 -> {
+            assert(r == RegEnum16.BC || r == RegEnum16.DE || r == RegEnum16.HL || r == RegEnum16.SP)
+            regs.gpr16(r).set(d)
+            regs.pc().inc(3)
+        }
+        is OpLdD16SP -> {
+            memory.set16(d, regs.sp().get())
+            regs.pc().inc(3)
+        }
+        is OpLdSPHL -> {
+            regs.sp().set(regs.hl().get())
+            regs.pc().inc()
+        }
         is OpIncR16 -> {
             val reg16 = regs.gpr16(r)
             val hi = reg16.get().hi()
