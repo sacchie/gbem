@@ -17,42 +17,42 @@ fun Registers.gpr16(r: RegEnum16): GPR<Int16> = when (r) {
     RegEnum16.SP -> sp()
 }
 
-fun Command.run(regs: Registers, memory: Memory) {
+fun Op.run(regs: Registers, memory: Memory) {
     when (this) {
-        is CommandLdR8R8 -> {
+        is OpLdR8R8 -> {
             val yVal = regs.gpr8(y).get()
             regs.gpr8(x).set(yVal)
             regs.pc().inc()
         }
-        is CommandLdR8D8 -> {
+        is OpLdR8D8 -> {
             regs.gpr8(r).set(d)
             regs.pc().inc(2)
         }
-        is CommandLdR8HL -> {
+        is OpLdR8HL -> {
             regs.gpr8(r).set(memory.get8(regs.hl().get()))
             regs.pc().inc()
         }
-        is CommandLdHLR8 -> {
+        is OpLdHLR8 -> {
             memory.set8(regs.hl().get(), regs.gpr8(r).get())
             regs.pc().inc()
         }
-        is CommandLdHLD8 -> {
+        is OpLdHLD8 -> {
             memory.set8(regs.hl().get(), d)
             regs.pc().inc(2)
         }
-        is CommandLdABC -> {
+        is OpLdABC -> {
             regs.a().set(memory.get8(regs.bc().get()))
             regs.pc().inc()
         }
-        is CommandLdADE -> {
+        is OpLdADE -> {
             regs.a().set(memory.get8(regs.de().get()))
             regs.pc().inc()
         }
-        is CommandLdAD16 -> {
+        is OpLdAD16 -> {
             regs.a().set(memory.get8(d))
             regs.pc().inc(3)
         }
-        is CommandIncR16 -> {
+        is OpIncR16 -> {
             val reg16 = regs.gpr16(r)
             val hi = reg16.get().hi()
             val lo = reg16.get().lo()
