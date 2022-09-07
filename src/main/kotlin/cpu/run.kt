@@ -11,10 +11,28 @@ fun Registers.gpr8(r: RegEnum8): GPR<Int8> = when (r) {
 }
 
 fun Registers.gpr16(r: RegEnum16): GPR<Int16> = when (r) {
+    RegEnum16.AF -> af()
     RegEnum16.BC -> bc()
     RegEnum16.DE -> de()
     RegEnum16.HL -> hl()
     RegEnum16.SP -> sp()
+}
+
+fun opAddA(regs: Registers, d: Int8, cy: Int8 = 0) {
+    val aOld = regs.a().get()
+    val aNew = aOld + d + cy
+    val aSet = aNew % 0x100
+    regs.flag().setZero(aSet == 0)
+    regs.flag().setSubtraction(false)
+    regs.flag().setCarry(0x100 <= aNew)
+    if (aOld <= 0b0111 && 0b1000 <= aNew) {
+        regs.flag().setHalfCarry(true)
+    } else if (0b1000 <= aOld && 0b10000 <= aNew) {
+        regs.flag().setHalfCarry(true)
+    } else {
+        regs.flag().setHalfCarry(false)
+    }
+    regs.a().set(aSet)
 }
 
 fun Op.run(regs: Registers, memory: Memory) {
@@ -111,6 +129,42 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
         is OpLdSPHL -> {
             regs.sp().set(regs.hl().get())
+            regs.pc().inc()
+        }
+        is OpPushR16 -> {
+            assert(r == RegEnum16.BC || r == RegEnum16.DE || r == RegEnum16.HL || r == RegEnum16.AF)
+            regs.sp().update { if (it < 2) it + 0x10000 - 2 else it - 2 }
+            memory.set16(regs.sp().get(), regs.gpr16(r).get())
+            regs.pc().inc()
+        }
+        is OpPopR16 -> {
+            assert(r == RegEnum16.BC || r == RegEnum16.DE || r == RegEnum16.HL || r == RegEnum16.AF)
+            regs.gpr16(r).set(memory.get16(regs.sp().get()))
+            regs.sp().update { (it + 2) % 0x10000 }
+            regs.pc().inc()
+        }
+        is OpAddAR8 -> {
+            opAddA(regs, regs.gpr8(r).get())
+            regs.pc().inc()
+        }
+        is OpAddAD8 -> {
+            opAddA(regs, d)
+            regs.pc().inc(2)
+        }
+        is OpAddAHL -> {
+            opAddA(regs, memory.get8(regs.hl().get()))
+            regs.pc().inc()
+        }
+        is OpAdcAR8 -> {
+            opAddA(regs, regs.gpr8(r).get() + if (regs.flag().isCarryOn()) 1 else 0)
+            regs.pc().inc()
+        }
+        is OpAdcAD8 -> {
+            opAddA(regs, d + if (regs.flag().isCarryOn()) 1 else 0)
+            regs.pc().inc(2)
+        }
+        is OpAdcAHL -> {
+            opAddA(regs, memory.get8(regs.hl().get()) + if (regs.flag().isCarryOn()) 1 else 0)
             regs.pc().inc()
         }
         is OpIncR16 -> {

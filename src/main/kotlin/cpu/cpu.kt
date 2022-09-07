@@ -13,6 +13,8 @@ fun int16FromHiAndLo(hi: Int8, lo: Int8): Int16 = hi.shl(8) + lo
 interface Memory {
     fun get8(addr: Int16): Int8
 
+    fun get16(addr: Int16): Int16
+
     fun set8(addr: Int16, int8: Int8)
 
     fun set16(addr: Int16, int16: Int16)
@@ -34,6 +36,9 @@ interface PC {
 
 // flag register
 interface Flag {
+    fun setZero(on: Boolean)
+    fun setSubtraction(on: Boolean)
+    fun setHalfCarry(on: Boolean)
     fun isCarryOn(): Boolean
     fun setCarry(on: Boolean)
 }
@@ -46,6 +51,13 @@ data class Registers(
     private var hl: Int16 = 0,
     private var sp: Int16 = 0,
 ) {
+    fun af(): GPR<Int16> = object : GPR<Int16> {
+        override fun get(): Int16 = af
+        override fun set(x: Int16) {
+            af = x
+        }
+    }
+
     fun bc(): GPR<Int16> = object : GPR<Int16> {
         override fun get(): Int16 = bc
         override fun set(x: Int16) {

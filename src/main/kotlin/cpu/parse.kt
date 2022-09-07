@@ -4,7 +4,8 @@ enum class RegEnum16(val num: Int8) {
     BC(0),
     DE(1),
     HL(2),
-    SP(3);
+    SP(3),
+    AF(3);
 
     companion object {
         fun fromNum(num: Int8): RegEnum16? = RegEnum16.values().find { it.num == num }
@@ -48,6 +49,15 @@ class OpLddAHL: Op
 data class OpLdR16D16(val r: RegEnum16, val d: Int16): Op
 data class OpLdD16SP(val d: Int16): Op
 class OpLdSPHL: Op
+data class OpPushR16(val r: RegEnum16): Op
+data class OpPopR16(val r: RegEnum16): Op
+
+data class OpAddAR8(val r: RegEnum8): Op
+data class OpAddAD8(val d: Int8): Op
+class OpAddAHL: Op
+data class OpAdcAR8(val r: RegEnum8): Op
+data class OpAdcAD8(val d: Int8): Op
+class OpAdcAHL: Op
 data class OpIncR16(val r: RegEnum16): Op
 
 
