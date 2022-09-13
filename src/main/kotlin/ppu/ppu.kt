@@ -1,8 +1,6 @@
 package ppu
 
-import java.awt.Canvas
-import java.awt.Color
-import java.awt.Dimension
+import java.awt.*
 import javax.swing.JFrame
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
 
@@ -12,44 +10,39 @@ import javax.swing.WindowConstants.EXIT_ON_CLOSE
 // palette
 // 3 layers: background, window, objects
 
-// VRAM: $8000-97FF (0x1800(6144) bytes, 16 bytes/tile, 384 tiles)
-// BG/Window Tile maps: $9800-$9BFF, $9C00-$9FFF
+// VRAM: ,0x8000-97FF (0x1800(6144) bytes, 16 bytes/tile, 384 tiles)
+// BG/Window Tile maps: ,0x9800-,0x9BFF, ,0x9C00-,0x9FFF
 
 // VRAM state, some I/O registers -> screen pixels
 
-fun render(memory: Memory) {
-    val WIDTH = 256
-    val HEIGHT = 256
 
+const val ADDR_LCDC = 0xFF40
+
+val DUMMY_DATA = listOf(0x3C ,0x7E ,0x42 ,0x42 ,0x42 ,0x42 ,0x42 ,0x42 ,0x7E ,0x5E ,0x7E ,0x0A ,0x7C ,0x56 ,0x38 ,0x7C)
+
+class MockMemoryImpl : Memory {
+    override fun get(addr: Address): Int8 {
+        return when (addr) {
+            ADDR_LCDC -> 0b10100011
+            else -> DUMMY_DATA.get(addr % 16)
+        }
+    }
+}
+
+const val WIDTH = 256
+const val HEIGHT = 256
+
+fun render(memory: Memory, gBuffer: Graphics, zoom: Int) {
     // Ref. https://gbdev.io/pandocs/Tile_Data.html
     val COLOR = listOf(Color(0x08, 0x18, 0x20),  Color(0x34, 0x68, 0x56), Color(0x88, 0xc0, 0x70), Color(0xe0, 0xf8, 0xd0))
 
-    val mainFrame = JFrame("gbem")
-    mainFrame.defaultCloseOperation = EXIT_ON_CLOSE
-    mainFrame.isResizable = false
-    val canvas = Canvas()
-    canvas.setPreferredSize(Dimension(WIDTH, HEIGHT))
-
-    mainFrame.contentPane.add(canvas)
-    mainFrame.pack()
-    mainFrame.setLocationRelativeTo(null)
-
-    mainFrame.isVisible = true
-
-    val gMain = canvas.getGraphics()
-    val buffer = canvas.createImage(WIDTH, HEIGHT)
-    val gBuffer = buffer.getGraphics()
-
-    // read VRAM
-
-    // TODO render full background (256x256)
-    val LCDC = memory.get(0xFF40)
+    // render full background (256x256)
+    val LCDC = memory.get(ADDR_LCDC)
     val bgEnabled = (LCDC and 0x0001) == 1
     val bgTileMapHead: Address = if ((LCDC and 0b1000) == 0b1000)  0x9C00 else  0x9800
     val LCDC4 = (LCDC and 0b10000) == 0b10000
 
-    gBuffer.clearRect(0, 0, WIDTH, HEIGHT)
-
+    // TODO add test for refactoring
     for (iTile in 0..1023) {
         val tileX = iTile % 32
         val tileY = iTile / 32
@@ -66,8 +59,7 @@ fun render(memory: Memory) {
 
                 val colorId: Int2 = ((byte0 and (1 shl bit)) shr bit) + ((byte1 and (1 shl bit)) shr bit) * 2
                 gBuffer.color = COLOR[colorId]
-                gBuffer.drawLine(x, y, x, y)
-                gMain.drawImage(buffer, 0, 0, canvas)
+                gBuffer.fillRect(x*zoom, y*zoom,zoom,zoom)
             }
         }
     }
