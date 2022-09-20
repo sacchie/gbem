@@ -1,7 +1,4 @@
-import ppu.HEIGHT
-import ppu.MockMemoryImpl
-import ppu.WIDTH
-import ppu.render
+import ppu.*
 import java.awt.Canvas
 import java.awt.Color
 import java.awt.Dimension
@@ -23,64 +20,30 @@ fun loop(maxIterations: Int) {
     }
 }
 
-// TODO refactor window class
 fun main(args: Array<String>) {
 //    loop(10)
 
     // Create Main Window
     val ZOOM = 5
-    val windowWidth = ZOOM * WIDTH
-    val windowHeight = ZOOM * HEIGHT
-
-    val mainFrame = JFrame("gbem")
-    mainFrame.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
-    mainFrame.isResizable = false
-    val mainCanvas = Canvas()
-    mainCanvas.setPreferredSize(Dimension(windowWidth, windowHeight))
-
-    mainFrame.contentPane.add(mainCanvas)
-    mainFrame.pack()
-    mainFrame.setLocationRelativeTo(null)
-    mainFrame.isVisible = true
-
-    val gMain = mainCanvas.getGraphics()
-    val mainBuffer = mainCanvas.createImage(windowWidth, windowHeight)
-    val mainGraphicsBuffer = mainBuffer.getGraphics()
+    val mainWindow = Window(ZOOM * WIDTH, ZOOM * HEIGHT, "gbem")
 
     // Create Monitor Window
-    val monitorWidth = 500
-    val monitorHeight = 500
-    val monitorFrame = JFrame("gbem monitor")
-    monitorFrame.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
-    monitorFrame.isResizable = false
-    val monitorCanvas = Canvas()
-    monitorCanvas.setPreferredSize(Dimension(monitorWidth, monitorHeight))
-
-    monitorFrame.contentPane.add(monitorCanvas)
-    monitorFrame.pack()
-    monitorFrame.setLocationRelativeTo(null)
-    monitorFrame.isVisible = true
-
-    val gMonitor = monitorCanvas.getGraphics()
-    val monitorBuffer = monitorCanvas.createImage(monitorWidth, monitorHeight)
-    val monitorGraphicsBuffer = monitorBuffer.getGraphics()
+    val monitorWindow = Window(500, 500, "gbem monitor")
 
     var prev = Instant.now()
     while (true) {
         val curr = Instant.now()
+
         // render main window
-        mainGraphicsBuffer.clearRect(0, 0, windowWidth, windowHeight)
-        render(MockMemoryImpl(), mainGraphicsBuffer, ZOOM)
-        gMain.drawImage(mainBuffer, 0, 0, mainCanvas)
+        mainWindow.draw { render(MockMemoryImpl(), it, ZOOM) }
 
         // render monitor window
-        val delta = Duration.between(prev, curr)
-        val fps = (1000.0 / delta.toMillis()).roundToInt()
-        monitorGraphicsBuffer.clearRect(0, 0, windowWidth, windowHeight)
-        monitorGraphicsBuffer.color = Color(0,0,0)
-        monitorGraphicsBuffer.drawString("${fps} fps", 0,50)
-        gMonitor.drawImage(monitorBuffer, 0, 0, monitorCanvas)
-
+        monitorWindow.draw {
+            val delta = Duration.between(prev, curr)
+            val fps = (1000.0 / delta.toMillis()).roundToInt()
+            it.color = Color(0, 0, 0)
+            it.drawString("${fps} fps", 0, 50)
+        }
         prev = curr
     }
     println("Emulation finished")
