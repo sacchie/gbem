@@ -58,6 +58,7 @@ class OpAddAHL: Op
 data class OpAdcAR8(val r: RegEnum8): Op
 data class OpAdcAD8(val d: Int8): Op
 class OpAdcAHL: Op
+data class OpSubAR8(val r: RegEnum8): Op
 data class OpIncR16(val r: RegEnum16): Op
 
 

@@ -22,17 +22,22 @@ fun opAddA(regs: Registers, d: Int8, cy: Int8 = 0) {
     val aOld = regs.a().get()
     val aNew = aOld + d + cy
     val aSet = aNew % 0x100
+    regs.a().set(aSet)
     regs.flag().setZero(aSet == 0)
     regs.flag().setSubtraction(false)
     regs.flag().setCarry(0x100 <= aNew)
-    if (aOld <= 0b0111 && 0b1000 <= aNew) {
-        regs.flag().setHalfCarry(true)
-    } else if (0b1000 <= aOld && 0b10000 <= aNew) {
-        regs.flag().setHalfCarry(true)
-    } else {
-        regs.flag().setHalfCarry(false)
-    }
+    regs.flag().setHalfCarry(aOld.and(0xF) + d.and(0xF) + cy > 0xF)
+}
+
+fun opSubA(regs: Registers, d: Int8, cy: Int8 = 0) {
+    val aOld = regs.a().get()
+    val aNew = aOld - d - cy
+    val aSet = (aNew + 0x100) % 0x100
     regs.a().set(aSet)
+    regs.flag().setZero(aSet == 0)
+    regs.flag().setSubtraction(true)
+    regs.flag().setCarry(aNew < 0)
+    regs.flag().setHalfCarry(aOld.and(0xF) - d.and(0xF) - cy < 0)
 }
 
 fun Op.run(regs: Registers, memory: Memory) {
@@ -165,6 +170,10 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
         is OpAdcAHL -> {
             opAddA(regs, memory.get8(regs.hl().get()) + if (regs.flag().isCarryOn()) 1 else 0)
+            regs.pc().inc()
+        }
+        is OpSubAR8 -> {
+            opSubA(regs, regs.gpr8(r).get())
             regs.pc().inc()
         }
         is OpIncR16 -> {
