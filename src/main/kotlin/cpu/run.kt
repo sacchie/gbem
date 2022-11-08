@@ -67,6 +67,34 @@ fun opOrA(regs: Registers, d: Int8) {
     regs.flag().setHalfCarry(false);
 }
 
+fun opCpA(regs: Registers, d: Int8) {
+    val aOld = regs.a().get()
+    val aNew = aOld - d
+    val aResult = (aNew + 0x100) % 0x100
+    regs.flag().setZero(aResult == 0)
+    regs.flag().setSubtraction(true)
+    regs.flag().setCarry(aNew < 0)
+    regs.flag().setHalfCarry(aOld.and(0xF) - d.and(0xF) < 0)
+}
+
+fun opInc(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
+    val oldVal = get();
+    val setVal = (oldVal + 1) % 0x100
+    set(setVal)
+    regs.flag().setZero(setVal == 0)
+    regs.flag().setSubtraction(false)
+    regs.flag().setHalfCarry(oldVal.and(0xF) + 1.and(0xF) > 0xF)
+}
+
+fun opDec(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
+    val oldVal = get();
+    val setVal = ((oldVal - 1) + 0x100) % 0x100
+    set(setVal)
+    regs.flag().setZero(setVal == 0)
+    regs.flag().setSubtraction(true)
+    regs.flag().setHalfCarry(oldVal.and(0xF) - 1.and(0xF) < 0)
+}
+
 fun Op.run(regs: Registers, memory: Memory) {
     when (this) {
         is OpLdR8R8 -> {
@@ -301,6 +329,63 @@ fun Op.run(regs: Registers, memory: Memory) {
 
         is OpOrAHL -> {
             opOrA(regs, memory.get8(regs.hl().get()))
+            regs.pc().inc()
+        }
+
+        is OpCpAR8 -> {
+            opCpA(regs, regs.gpr8(r).get())
+            regs.pc().inc()
+        }
+
+        is OpCpAD8 -> {
+            opCpA(regs, d)
+            regs.pc().inc(2)
+        }
+
+        is OpCpAHL -> {
+            opCpA(regs, memory.get8(regs.hl().get()))
+            regs.pc().inc()
+        }
+
+        is OpIncR8 -> {
+            opInc(regs, { regs.gpr8(r).get() }, { d -> regs.gpr8(r).set(d) })
+            regs.pc().inc()
+        }
+
+        is OpIncHL -> {
+            opInc(regs, { memory.get8(regs.hl().get()) }, { d -> memory.set8(regs.hl().get(), d) })
+            regs.pc().inc()
+        }
+
+        is OpDecR8 -> {
+            opDec(regs, { regs.gpr8(r).get() }, { d -> regs.gpr8(r).set(d) })
+            regs.pc().inc()
+        }
+
+        is OpDecHL -> {
+            opDec(regs, { memory.get8(regs.hl().get()) }, { d -> memory.set8(regs.hl().get(), d) })
+            regs.pc().inc()
+        }
+
+        is OpDaa -> {
+            var corr = 0
+                .or(if (regs.flag().isHalfCarryOn()) 0x06 else 0x00)
+                .or(if (regs.flag().isCarryOn()) 0x60 else 0x00)
+
+            val aOld = regs.a().get()
+            val aNew = if (regs.flag().isSubtractionOn()) {
+                aOld - corr
+            } else {
+                corr = corr
+                    .or(if (aOld.and(0x0F) > 0x09) 0x06 else 0x00)
+                    .or(if (aOld > 0x99) 0x60 else 0x00)
+                aOld + corr
+            }
+
+            regs.flag().setSubtraction(false)
+            regs.flag().setZero(aNew.and(0xFF) == 0)
+            regs.flag().setCarry(corr.and(0x60) != 0)
+            regs.a().set(aNew.and(0xFF))
             regs.pc().inc()
         }
 

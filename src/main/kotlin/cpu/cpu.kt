@@ -36,8 +36,11 @@ interface PC {
 
 // flag register
 interface Flag {
+    fun isZeroOn(): Boolean
     fun setZero(on: Boolean)
+    fun isSubtractionOn(): Boolean
     fun setSubtraction(on: Boolean)
+    fun isHalfCarryOn(): Boolean
     fun setHalfCarry(on: Boolean)
     fun isCarryOn(): Boolean
     fun setCarry(on: Boolean)
@@ -143,6 +146,30 @@ data class Registers(
     }
 
     fun flag(): Flag = object : Flag {
+        override fun isZeroOn(): Boolean {
+            TODO("Not yet implemented")
+        }
+
+        override fun setZero(on: Boolean) {
+            TODO("Not yet implemented")
+        }
+
+        override fun isSubtractionOn(): Boolean {
+            TODO("Not yet implemented")
+        }
+
+        override fun setSubtraction(on: Boolean) {
+            TODO("Not yet implemented")
+        }
+
+        override fun isHalfCarryOn(): Boolean {
+            TODO("Not yet implemented")
+        }
+
+        override fun setHalfCarry(on: Boolean) {
+            TODO("Not yet implemented")
+        }
+
         override fun isCarryOn(): Boolean = af.lo().and(0b0001_0000) == 0b0001_0000
         override fun setCarry(on: Boolean) {
             val f = af.lo()

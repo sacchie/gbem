@@ -73,6 +73,16 @@ class OpXorAHL: Op
 data class OpOrAR8(val r: RegEnum8): Op
 data class OpOrAD8(val d: Int8): Op
 class OpOrAHL: Op
+data class OpCpAR8(val r: RegEnum8): Op
+data class OpCpAD8(val d: Int8): Op
+class OpCpAHL: Op
+data class OpIncR8(val r: RegEnum8): Op
+class OpIncHL : Op
+data class OpDecR8(val r: RegEnum8): Op
+class OpDecHL : Op
+class OpDaa: Op
+class OpCpl: Op
+
 
 data class OpIncR16(val r: RegEnum16): Op
 
