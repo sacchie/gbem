@@ -389,19 +389,69 @@ fun Op.run(regs: Registers, memory: Memory) {
             regs.pc().inc()
         }
 
+        is OpCpl -> {
+            regs.a().set(regs.a().get().xor(0xFF).and(0xFF))
+            regs.flag().setSubtraction(true)
+            regs.flag().setHalfCarry(true)
+            regs.pc().inc()
+        }
+
+        is OpAddHLR16 -> {
+            val hlOld = regs.hl().get()
+            val hlNew = hlOld + regs.gpr16(r).get()
+            val hlSet = hlNew % 0x10000
+            regs.hl().set(hlSet)
+            regs.flag().setSubtraction(false)
+            regs.flag().setCarry(0x10000 <= hlNew)
+            regs.flag().setHalfCarry(0xFFF < hlOld.and(0xFFF) + regs.gpr16(r).get().and(0xFFF))
+            regs.pc().inc()
+        }
+
         is OpIncR16 -> {
             val reg16 = regs.gpr16(r)
-            val hi = reg16.get().hi()
-            val lo = reg16.get().lo()
+            reg16.set((reg16.get() + 1) % 0x10000)
+            regs.pc().inc()
+        }
 
-            if (lo != 0xFF) {
-                reg16.set(int16FromHiAndLo(hi, lo + 1))
-            } else if (hi != 0xFF) {
-                reg16.set(int16FromHiAndLo(hi + 1, 0))
-            } else {
-                reg16.set(int16FromHiAndLo(0, 0))
-                regs.flag().setCarry(true)
-            }
+        is OpDecR16 -> {
+            val reg16 = regs.gpr16(r)
+            reg16.set(((reg16.get() - 1) + 0x10000) % 0x10000)
+            regs.pc().inc()
+        }
+
+        is OpAddSpD8 -> {
+            val spOld = regs.sp().get()
+            val spNew = if (d < 0x80) spOld + d else spOld - (0x100 - d)
+            val spSet = (spNew + 0x10000) % 0x10000
+            regs.sp().set(spSet)
+            regs.flag().setZero(false)
+            regs.flag().setSubtraction(false)
+            regs.flag().setHalfCarry(0xF < (spOld.and(0xF) + d.and(0xF)))
+            regs.flag().setCarry(0xFF < (spOld.and(0xFF) + d.and(0xFF)))
+            regs.pc().inc(2)
+        }
+
+        is OpLdSpAndD8 -> {
+            val spVal = regs.sp().get()
+            val hlNew = if (d < 0x80) spVal + d else spVal - (0x100 - d)
+            val hlSet = (hlNew + 0x10000) % 0x10000
+            regs.hl().set(hlSet)
+            regs.flag().setZero(false)
+            regs.flag().setSubtraction(false)
+            regs.flag().setHalfCarry(0xF < (spVal.and(0xF) + d.and(0xF)))
+            regs.flag().setCarry(0xFF < (spVal.and(0xFF) + d.and(0xFF)))
+            regs.pc().inc(2)
+        }
+
+        is OpRlcA -> {
+            val aOld = regs.a().get()
+            val aNew = aOld.shl(1) + aOld.shr(7)
+            val aSet = aNew  % 0x100
+            regs.a().set(aSet)
+            regs.flag().setZero(false)
+            regs.flag().setSubtraction(false)
+            regs.flag().setHalfCarry(false)
+            regs.flag().setCarry(0xFF < aNew)
             regs.pc().inc()
         }
     }
