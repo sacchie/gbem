@@ -95,6 +95,50 @@ fun opDec(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
     regs.flag().setHalfCarry(oldVal.and(0xF) - 1.and(0xF) < 0)
 }
 
+fun opRlc(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
+    val aOld = get()
+    val aNew = aOld.shl(1) + aOld.shr(7)
+    val aSet = aNew  % 0x100
+    set(aSet)
+    regs.flag().setZero(false)
+    regs.flag().setSubtraction(false)
+    regs.flag().setHalfCarry(false)
+    regs.flag().setCarry(0xFF < aNew)
+}
+
+fun opRl(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
+    val vOld = get()
+    val vNew = vOld.shl(1) + if (regs.flag().isCarryOn()) 1 else 0
+    val vSet = vNew % 0x100
+    set(vSet)
+    regs.flag().setZero(false)
+    regs.flag().setSubtraction(false)
+    regs.flag().setHalfCarry(false)
+    regs.flag().setCarry(0xFF < vNew)
+}
+
+fun opRrc(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
+    val vOld = get()
+    val vNew = vOld.shr(1) + vOld.shl(7).and(0xFF)
+    val vSet = vNew  % 0x100
+    set(vSet)
+    regs.flag().setZero(false)
+    regs.flag().setSubtraction(false)
+    regs.flag().setHalfCarry(false)
+    regs.flag().setCarry(vOld.and(1) == 1)
+}
+
+fun opRr(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
+    val vOld = get()
+    val vNew = vOld.shr(1) + (if (regs.flag().isCarryOn()) 1 else 0).shl(7)
+    val vSet = vNew % 0x100
+    set(vSet)
+    regs.flag().setZero(false)
+    regs.flag().setSubtraction(false)
+    regs.flag().setHalfCarry(false)
+    regs.flag().setCarry(vOld.and(1) == 1)
+}
+
 fun Op.run(regs: Registers, memory: Memory) {
     when (this) {
         is OpLdR8R8 -> {
@@ -444,15 +488,67 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpRlcA -> {
-            val aOld = regs.a().get()
-            val aNew = aOld.shl(1) + aOld.shr(7)
-            val aSet = aNew  % 0x100
-            regs.a().set(aSet)
-            regs.flag().setZero(false)
-            regs.flag().setSubtraction(false)
-            regs.flag().setHalfCarry(false)
-            regs.flag().setCarry(0xFF < aNew)
+            opRlc(regs, {regs.a().get()}, {regs.a().set(it)})
             regs.pc().inc()
+        }
+
+        is OpRlA -> {
+            opRl(regs, {regs.a().get()}, {regs.a().set(it)})
+            regs.pc().inc()
+        }
+
+        is OpRrcA -> {
+            opRrc(regs, {regs.a().get()}, {regs.a().set(it)})
+            regs.pc().inc()
+        }
+
+        is OpRrA -> {
+            opRr(regs, {regs.a().get()}, {regs.a().set(it)})
+            regs.pc().inc()
+        }
+
+        is OpRlcR8 -> {
+            opRlc(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)})
+            regs.pc().inc(2)
+        }
+
+        is OpRlcHL -> {
+            val addr = regs.hl().get()
+            opRlc(regs, {memory.get8(addr)}, {memory.set8(addr, it)})
+            regs.pc().inc(2)
+        }
+
+        is OpRlR8 -> {
+            opRl(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)})
+            regs.pc().inc(2)
+        }
+
+        is OpRlHL -> {
+            val addr = regs.hl().get()
+            opRl(regs, {memory.get8(addr)}, {memory.set8(addr, it)})
+            regs.pc().inc(2)
+        }
+
+        is OpRrcR8 -> {
+            opRrc(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)})
+            regs.pc().inc(2)
+        }
+
+        is OpRrcHL -> {
+            val addr = regs.hl().get()
+            opRrc(regs, {memory.get8(addr)}, {memory.set8(addr, it)})
+            regs.pc().inc(2)
+        }
+
+        is OpRrR8 -> {
+            opRr(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)})
+            regs.pc().inc(2)
+        }
+
+        is OpRrHL -> {
+            val addr = regs.hl().get()
+            opRr(regs, {memory.get8(addr)}, {memory.set8(addr, it)})
+            regs.pc().inc(2)
         }
     }
 }

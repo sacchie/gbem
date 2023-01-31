@@ -88,6 +88,17 @@ data class OpDecR16(val r: RegEnum16): Op
 data class OpAddSpD8(val d: Int8): Op
 data class OpLdSpAndD8(val d: Int8): Op
 class OpRlcA : Op
+class OpRlA : Op
+class OpRrcA : Op
+class OpRrA : Op
+data class OpRlcR8(val r: RegEnum8) : Op
+class OpRlcHL : Op
+data class OpRlR8(val r: RegEnum8): Op
+class OpRlHL : Op
+data class OpRrcR8(val r: RegEnum8) : Op
+class OpRrcHL : Op
+data class OpRrR8(val r: RegEnum8): Op
+class OpRrHL : Op
 
 fun parse(memory: Memory, address: Int16): Op {
     val opcode = memory.get8(address)
