@@ -95,45 +95,45 @@ fun opDec(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
     regs.flag().setHalfCarry(oldVal.and(0xF) - 1.and(0xF) < 0)
 }
 
-fun opRlc(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
+fun opRlc(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit, forceZeroOff: Boolean) {
     val aOld = get()
     val aNew = aOld.shl(1) + aOld.shr(7)
     val aSet = aNew  % 0x100
     set(aSet)
-    regs.flag().setZero(false)
+    regs.flag().setZero(if (forceZeroOff) false else aSet == 0)
     regs.flag().setSubtraction(false)
     regs.flag().setHalfCarry(false)
     regs.flag().setCarry(0xFF < aNew)
 }
 
-fun opRl(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
+fun opRl(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit, forceZeroOff: Boolean) {
     val vOld = get()
     val vNew = vOld.shl(1) + if (regs.flag().isCarryOn()) 1 else 0
     val vSet = vNew % 0x100
     set(vSet)
-    regs.flag().setZero(false)
+    regs.flag().setZero(if (forceZeroOff) false else vSet == 0)
     regs.flag().setSubtraction(false)
     regs.flag().setHalfCarry(false)
     regs.flag().setCarry(0xFF < vNew)
 }
 
-fun opRrc(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
+fun opRrc(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit, forceZeroOff: Boolean) {
     val vOld = get()
     val vNew = vOld.shr(1) + vOld.shl(7).and(0xFF)
     val vSet = vNew  % 0x100
     set(vSet)
-    regs.flag().setZero(false)
+    regs.flag().setZero(if (forceZeroOff) false else vSet == 0)
     regs.flag().setSubtraction(false)
     regs.flag().setHalfCarry(false)
     regs.flag().setCarry(vOld.and(1) == 1)
 }
 
-fun opRr(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
+fun opRr(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit, forceZeroOff: Boolean) {
     val vOld = get()
     val vNew = vOld.shr(1) + (if (regs.flag().isCarryOn()) 1 else 0).shl(7)
     val vSet = vNew % 0x100
     set(vSet)
-    regs.flag().setZero(false)
+    regs.flag().setZero(if (forceZeroOff) false else vSet == 0)
     regs.flag().setSubtraction(false)
     regs.flag().setHalfCarry(false)
     regs.flag().setCarry(vOld.and(1) == 1)
