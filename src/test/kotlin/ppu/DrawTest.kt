@@ -16,7 +16,7 @@ internal class DrawTest {
                     else -> error("unexpected")
                 }
             }
-        }, 5, 5, 1, 0x8000) { x, y, colorId ->
+        }, 5, 5, 1, true) { x, y, colorId ->
             set.add(
                 Triple(
                     x,
