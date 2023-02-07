@@ -60,30 +60,50 @@ const val VIEWPORT_H = 144
 fun drawViewport(memory: Memory, drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit) {
     for (ly in 0 until VIEWPORT_H) {
         // TODO set LY register
+        drawScanlineInViewport(memory, ly, drawPixelToScreen)
+    }
+}
 
-        // draw one scanline for LY = ly
-        val LCDC = memory.get(ADDR_LCDC)
-        val bgEnabled = (LCDC and 0x0001) == 1
-        if (bgEnabled) {
-            val bgTileMapHead: Address = if ((LCDC and 0b1000) == 0b1000) 0x9C00 else 0x9800
-            val LCDC4 = (LCDC and 0b10000) == 0b10000
-            val SCX = memory.get(ADDR_SCX)
-            val SCY = memory.get(ADDR_SCY)
-            val yOnScreen = (SCY + ly) % SCREEN_H
-            val tileY = yOnScreen / TILE_H
-            val yOnTile = yOnScreen % TILE_H
-            for (lx in 0 until VIEWPORT_W) {
-                val xOnScreen = (SCX + lx) % SCREEN_W
-                val tileX = xOnScreen / TILE_W
-                val xOnTile = xOnScreen % TILE_W
+/**
+ * draw one scanline for LY = ly
+ */
+fun drawScanlineInViewport(
+    memory: Memory,
+    ly: Int,
+    drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit,
+) {
+    val LCDC = memory.get(ADDR_LCDC)
+    val bgEnabled = (LCDC and 0x0001) == 1
+    if (bgEnabled) {
+        drawBackgroundForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
+    }
+    // TODO draw window
+    // TODO draw sprites
+}
 
-                val iTile = tileX + 32 * tileY
-                val tileId = memory.get(bgTileMapHead + iTile)
+private fun drawBackgroundForScanlineInViewport(
+    memory: Memory,
+    LCDC: Int8,
+    ly: Int,
+    drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit
+) {
+    val bgTileMapHead: Address = if ((LCDC and 0b1000) == 0b1000) 0x9C00 else 0x9800
+    val LCDC4 = (LCDC and 0b10000) == 0b10000
+    val SCX = memory.get(ADDR_SCX)
+    val SCY = memory.get(ADDR_SCY)
+    val yOnScreen = (SCY + ly) % SCREEN_H
+    val tileY = yOnScreen / TILE_H
+    val yOnTile = yOnScreen % TILE_H
+    for (lx in 0 until VIEWPORT_W) {
+        val xOnScreen = (SCX + lx) % SCREEN_W
+        val tileX = xOnScreen / TILE_W
+        val xOnTile = xOnScreen % TILE_W
 
-                val colorId: Int2 = getColorIdOfPixelOnTile(memory, LCDC4, tileId, xOnTile, yOnTile)
-                drawPixelToScreen(lx, ly, colorId)
-            }
-        }
+        val iTile = tileX + 32 * tileY
+        val tileId = memory.get(bgTileMapHead + iTile)
+
+        val colorId: Int2 = getColorIdOfPixelOnTile(memory, LCDC4, tileId, xOnTile, yOnTile)
+        drawPixelToScreen(lx, ly, colorId)
     }
 }
 
