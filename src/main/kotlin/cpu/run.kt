@@ -139,6 +139,50 @@ fun opRr(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit, forceZeroOff:
     regs.flag().setCarry(vOld.and(1) == 1)
 }
 
+fun opSwap(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
+    val vOld = get()
+    val vOldHigh = vOld.shr(4)
+    val vOldLow = vOld.and(0xF)
+    val vSet = vOldLow.shl(4).or(vOldHigh)
+    set(vSet)
+    regs.flag().setZero(vSet == 0)
+    regs.flag().setSubtraction(false)
+    regs.flag().setHalfCarry(false)
+    regs.flag().setCarry(false)
+}
+
+fun opSra(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
+    val vOld = get()
+    val vSet = vOld.shr(1) + vOld.and(0b10000000)
+    set(vSet)
+    regs.flag().setZero(vSet == 0)
+    regs.flag().setSubtraction(false)
+    regs.flag().setHalfCarry(false)
+    regs.flag().setCarry(vOld.and(1) == 1)
+}
+
+fun opSrl(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
+    val vOld = get()
+    val vSet = vOld.shr(1)
+    set(vSet)
+    regs.flag().setZero(vSet == 0)
+    regs.flag().setSubtraction(false)
+    regs.flag().setHalfCarry(false)
+    regs.flag().setCarry(vOld.and(1) == 1)
+}
+
+fun opBitN(n: Int, regs: Registers, get: () -> Int8) {
+    val vOld = get()
+    val vNew = vOld.and(1.shl(n))
+    regs.flag().setZero((vNew % 0x100) == 0)
+    regs.flag().setSubtraction(false)
+    regs.flag().setHalfCarry(true)
+}
+
+fun opSetN(n: Int, regs: Registers, get: () -> Int8,  set: (d: Int8) -> Unit) {
+    set(get().or(1.shl(n)))
+}
+
 fun Op.run(regs: Registers, memory: Memory) {
     when (this) {
         is OpLdR8R8 -> {
@@ -488,66 +532,141 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpRlcA -> {
-            opRlc(regs, {regs.a().get()}, {regs.a().set(it)})
+            opRlc(regs, {regs.a().get()}, {regs.a().set(it)}, true)
             regs.pc().inc()
         }
 
         is OpRlA -> {
-            opRl(regs, {regs.a().get()}, {regs.a().set(it)})
+            opRl(regs, {regs.a().get()}, {regs.a().set(it)}, true)
             regs.pc().inc()
         }
 
         is OpRrcA -> {
-            opRrc(regs, {regs.a().get()}, {regs.a().set(it)})
+            opRrc(regs, {regs.a().get()}, {regs.a().set(it)}, true)
             regs.pc().inc()
         }
 
         is OpRrA -> {
-            opRr(regs, {regs.a().get()}, {regs.a().set(it)})
+            opRr(regs, {regs.a().get()}, {regs.a().set(it)}, true)
             regs.pc().inc()
         }
 
         is OpRlcR8 -> {
-            opRlc(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)})
+            opRlc(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)}, false)
             regs.pc().inc(2)
         }
 
         is OpRlcHL -> {
             val addr = regs.hl().get()
-            opRlc(regs, {memory.get8(addr)}, {memory.set8(addr, it)})
+            opRlc(regs, {memory.get8(addr)}, {memory.set8(addr, it)}, false)
             regs.pc().inc(2)
         }
 
         is OpRlR8 -> {
-            opRl(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)})
+            opRl(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)}, false)
             regs.pc().inc(2)
         }
 
         is OpRlHL -> {
             val addr = regs.hl().get()
-            opRl(regs, {memory.get8(addr)}, {memory.set8(addr, it)})
+            opRl(regs, {memory.get8(addr)}, {memory.set8(addr, it)}, false)
             regs.pc().inc(2)
         }
 
         is OpRrcR8 -> {
-            opRrc(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)})
+            opRrc(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)}, false)
             regs.pc().inc(2)
         }
 
         is OpRrcHL -> {
             val addr = regs.hl().get()
-            opRrc(regs, {memory.get8(addr)}, {memory.set8(addr, it)})
+            opRrc(regs, {memory.get8(addr)}, {memory.set8(addr, it)}, false)
             regs.pc().inc(2)
         }
 
         is OpRrR8 -> {
-            opRr(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)})
+            opRr(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)}, false)
             regs.pc().inc(2)
         }
 
         is OpRrHL -> {
             val addr = regs.hl().get()
-            opRr(regs, {memory.get8(addr)}, {memory.set8(addr, it)})
+            opRr(regs, {memory.get8(addr)}, {memory.set8(addr, it)}, false)
+            regs.pc().inc(2)
+        }
+
+        is OpSlaR8 -> {
+            val reg = regs.gpr8(r)
+            val vOld = reg.get()
+            val vNew = vOld.shl(1)
+            val vSet = vNew % 0x100
+            reg.set(vSet)
+            regs.flag().setZero(vSet == 0)
+            regs.flag().setSubtraction(false)
+            regs.flag().setHalfCarry(false)
+            regs.flag().setCarry(0xFF < vNew)
+            regs.pc().inc(2)
+        }
+
+        is OpSlaHL -> {
+            val vOld = memory.get8(regs.hl().get())
+            val vNew = vOld.shl(1)
+            val vSet = vNew % 0x100
+            memory.set8(regs.hl().get(), vSet)
+            regs.flag().setZero(vSet == 0)
+            regs.flag().setSubtraction(false)
+            regs.flag().setHalfCarry(false)
+            regs.flag().setCarry(0xFF < vNew)
+            regs.pc().inc(2)
+        }
+
+        is OpSwapR8 -> {
+            opSwap(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)})
+            regs.pc().inc(2)
+        }
+
+        is OpSwapHL -> {
+            opSwap(regs, {memory.get8(regs.hl().get())}, {memory.set8(regs.hl().get(), it)})
+            regs.pc().inc(2)
+        }
+
+        is OpSraR8 -> {
+            opSra(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)})
+            regs.pc().inc(2)
+        }
+
+        is OpSraHL -> {
+            opSra(regs, {memory.get8(regs.hl().get())}, {memory.set8(regs.hl().get(), it)})
+            regs.pc().inc(2)
+        }
+
+        is OpSrlR8 -> {
+            opSrl(regs, {regs.gpr8(r).get()}, {regs.gpr8(r).set(it)})
+            regs.pc().inc(2)
+        }
+
+        is OpSrlHL -> {
+            opSrl(regs, {memory.get8(regs.hl().get())}, {memory.set8(regs.hl().get(), it)})
+            regs.pc().inc(2)
+        }
+
+        is OpBitNR8 -> {
+            opBitN(n, regs, {regs.gpr8(r).get()})
+            regs.pc().inc(2)
+        }
+
+        is OpBitNHL -> {
+            opBitN(n, regs, {memory.get8(regs.hl().get())})
+            regs.pc().inc(2)
+        }
+
+        is OpSetNR8 -> {
+            opSetN(n, regs, {regs.gpr8(r).get()},  {regs.gpr8(r).set(it)})
+            regs.pc().inc(2)
+        }
+
+        is OpSetNHL -> {
+            opSetN(n, regs, {memory.get8(regs.hl().get())}, {memory.set8(regs.hl().get(), it)})
             regs.pc().inc(2)
         }
     }
