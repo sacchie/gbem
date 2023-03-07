@@ -19,7 +19,7 @@ const val ADDR_SCX = 0xFF43
 /**
  * Renders full background (256x256)
  */
-fun drawScreen(memory: Memory, drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit) {
+fun drawBackgroundToScreen(memory: Memory, drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit) {
     val LCDC = memory.get(ADDR_LCDC)
     // Ignoring LCDC.0 (BG Enabled)
     val bgTileMapHead: Address = if ((LCDC and 0b1000) == 0b1000)  0x9C00 else  0x9800

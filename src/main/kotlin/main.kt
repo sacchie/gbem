@@ -49,9 +49,34 @@ fun main(args: Array<String>) {
 
         // draw background debug window
         backgroundDebugWindow.draw { buf ->
-            drawScreen(memory) { x, y, colorId ->
+            drawBackgroundToScreen(memory) { x, y, colorId ->
                 buf.color = COLOR[colorId]
                 buf.fillRect(x * zoom, y * zoom, zoom, zoom)
+            }
+            val left = memory.get(ADDR_SCX)
+            val top = memory.get(ADDR_SCY)
+            val right = (left + VIEWPORT_W) % SCREEN_W
+            val bottom = (top + VIEWPORT_H) % SCREEN_H
+            buf.color = Color.RED
+            // lines from left to right
+            if (left < right) {
+                buf.fillRect(left * zoom, top * zoom, (right - left) * zoom, zoom)
+                buf.fillRect(left * zoom, bottom * zoom, (right - left) * zoom, zoom)
+            } else {
+                buf.fillRect(0, top * zoom, right * zoom, zoom)
+                buf.fillRect(left * zoom, top * zoom, (SCREEN_W - left) * zoom, zoom)
+                buf.fillRect(0, bottom * zoom, right * zoom, zoom)
+                buf.fillRect(left * zoom, bottom * zoom, (SCREEN_W - left) * zoom, zoom)
+            }
+            // lines from top to bottom
+            if (top < bottom) {
+                buf.fillRect(left * zoom, top * zoom, zoom, (bottom - top) * zoom)
+                buf.fillRect(right * zoom, top * zoom, zoom, (bottom - top) * zoom)
+            } else {
+                buf.fillRect(left * zoom, 0, zoom, bottom * zoom)
+                buf.fillRect(left * zoom, top * zoom, zoom, (SCREEN_H - top) * zoom)
+                buf.fillRect(right * zoom, 0, zoom, bottom * zoom)
+                buf.fillRect(right * zoom, top * zoom, zoom, (SCREEN_H - top) * zoom)
             }
         }
 
@@ -69,14 +94,15 @@ fun main(args: Array<String>) {
     println("Emulation finished")
 }
 
-private val DUMMY_DATA = listOf(0x3C ,0x7E ,0x42 ,0x42 ,0x42 ,0x42 ,0x42 ,0x42 ,0x7E ,0x5E ,0x7E ,0x0A ,0x7C ,0x56 ,0x38 ,0x7C)
+private val DUMMY_DATA =
+    listOf(0x3C, 0x7E, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x7E, 0x5E, 0x7E, 0x0A, 0x7C, 0x56, 0x38, 0x7C)
 
 class MockMemoryImpl : Memory {
     var counter = 0
     override fun get(addr: Address): Int8 {
         return when (addr) {
-            ADDR_SCX -> (counter++ / 20) % 256
-            ADDR_SCY -> (counter++ / 40) % 256
+            ADDR_SCX -> (counter++ / 200) % 256
+            ADDR_SCY -> (counter++ / 400) % 256
             ADDR_LCDC -> 0b10100011
             else -> DUMMY_DATA[addr % 16]
         }
