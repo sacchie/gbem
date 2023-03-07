@@ -73,11 +73,14 @@ fun drawScanlineInViewport(
     drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit,
 ) {
     val LCDC = memory.get(ADDR_LCDC)
-    val bgEnabled = (LCDC and 0x0001) == 1
-    if (bgEnabled) {
+    val bgAndWindowEnabled = (LCDC and 0x0001) == 1
+    if (bgAndWindowEnabled) {
         drawBackgroundForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
     }
-    // TODO draw window
+    val windowEnabled = (LCDC and 0b00100000) > 0
+    if (windowEnabled && bgAndWindowEnabled) {
+        drawWindowForScanlineInViewport() // TODO tile dataは共通。WX,WYを取ってきて、Tile MapはLCDC.6から先頭アドレスが分かる
+    }
     // TODO draw sprites
 }
 
