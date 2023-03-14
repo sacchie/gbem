@@ -179,8 +179,12 @@ fun opBitN(n: Int, regs: Registers, get: () -> Int8) {
     regs.flag().setHalfCarry(true)
 }
 
-fun opSetN(n: Int, regs: Registers, get: () -> Int8,  set: (d: Int8) -> Unit) {
+fun opSetN(n: Int, get: () -> Int8,  set: (d: Int8) -> Unit) {
     set(get().or(1.shl(n)))
+}
+
+fun opResN(n: Int, get: () -> Int8,  set: (d: Int8) -> Unit) {
+    set(get().and(1.shl(n).inv()))
 }
 
 fun Op.run(regs: Registers, memory: Memory) {
@@ -661,13 +665,61 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpSetNR8 -> {
-            opSetN(n, regs, {regs.gpr8(r).get()},  {regs.gpr8(r).set(it)})
+            opSetN(n, {regs.gpr8(r).get()},  {regs.gpr8(r).set(it)})
             regs.pc().inc(2)
         }
 
         is OpSetNHL -> {
-            opSetN(n, regs, {memory.get8(regs.hl().get())}, {memory.set8(regs.hl().get(), it)})
+            opSetN(n, {memory.get8(regs.hl().get())}, {memory.set8(regs.hl().get(), it)})
             regs.pc().inc(2)
+        }
+
+        is OpResNR8 -> {
+            opResN(n, {regs.gpr8(r).get()},  {regs.gpr8(r).set(it)})
+            regs.pc().inc(2)
+        }
+
+        is OpResNHL -> {
+            opResN(n, {memory.get8(regs.hl().get())}, {memory.set8(regs.hl().get(), it)})
+            regs.pc().inc(2)
+        }
+
+        is OpCcf -> {
+            regs.flag().setCarry(!regs.flag().isCarryOn())
+            regs.flag().setHalfCarry(false)
+            regs.flag().setSubtraction(false)
+            regs.pc().inc()
+        }
+
+        is OpScf -> {
+            regs.flag().setCarry(true)
+            regs.flag().setHalfCarry(false)
+            regs.flag().setSubtraction(false)
+            regs.pc().inc()
+        }
+
+        is OpNop -> {
+            regs.pc().inc()
+        }
+
+        is OpHalt -> {
+            regs.pc().inc()
+            throw UnsupportedOperationException()
+        }
+
+        is OpStop -> {
+            regs.pc().inc(2)
+            throw UnsupportedOperationException()
+        }
+
+        is OpDi -> {
+            memory.set8(0xFFFF, 0)
+            regs.pc().inc()
+        }
+
+        is OpEi -> {
+            memory.set8(0xFFFF, 0xFF)
+            regs.pc().inc()
         }
     }
 }

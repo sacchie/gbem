@@ -111,6 +111,15 @@ data class OpBitNR8(val n: Int, val r: RegEnum8) : Op
 class OpBitNHL(val n: Int) : Op
 data class OpSetNR8(val n: Int, val r: RegEnum8) : Op
 class OpSetNHL(val n: Int) : Op
+data class OpResNR8(val n: Int, val r: RegEnum8) : Op
+class OpResNHL(val n: Int) : Op
+class OpCcf: Op
+class OpScf: Op
+class OpNop: Op
+class OpHalt: Op
+class OpStop: Op
+class OpDi: Op
+class OpEi: Op
 
 fun parse(memory: Memory, address: Int16): Op {
     val opcode = memory.get8(address)
