@@ -15,6 +15,8 @@ package ppu
 const val ADDR_LCDC = 0xFF40
 const val ADDR_SCY = 0xFF42
 const val ADDR_SCX = 0xFF43
+const val ADDR_WY = 0xFF4A
+const val ADDR_WX = 0xFF4B
 
 /**
  * Renders full background (256x256)
@@ -22,7 +24,7 @@ const val ADDR_SCX = 0xFF43
 fun drawBackgroundToScreen(memory: Memory, drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit) {
     val LCDC = memory.get(ADDR_LCDC)
     // Ignoring LCDC.0 (BG Enabled)
-    val bgTileMapHead: Address = if ((LCDC and 0b1000) == 0b1000)  0x9C00 else  0x9800
+    val bgTileMapHead: Address = if ((LCDC and 0b1000) == 0b1000) 0x9C00 else 0x9800
     val LCDC4 = (LCDC and 0b10000) == 0b10000
 
     for (iTile in 0..1023) {
@@ -33,7 +35,14 @@ fun drawBackgroundToScreen(memory: Memory, drawPixelToScreen: (x: Int, y: Int, c
     }
 }
 
-fun drawBackgroundTileToScreen(memory: Memory, tileX: Int, tileY: Int, tileId: Int8, LCDC4: Boolean, drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit) {
+fun drawBackgroundTileToScreen(
+    memory: Memory,
+    tileX: Int,
+    tileY: Int,
+    tileId: Int8,
+    LCDC4: Boolean,
+    drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit
+) {
     for (yOnTile in 0..7) {
         for (xOnTile in 0..7) {
             val xOnScreen = tileX * TILE_W + xOnTile
@@ -77,9 +86,9 @@ fun drawScanlineInViewport(
     if (bgAndWindowEnabled) {
         drawBackgroundForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
     }
-    val windowEnabled = (LCDC and 0b00100000) > 0
+    val windowEnabled = (LCDC and 1.shl(5)) > 0
     if (windowEnabled && bgAndWindowEnabled) {
-        drawWindowForScanlineInViewport() // TODO tile dataは共通。WX,WYを取ってきて、Tile MapはLCDC.6から先頭アドレスが分かる
+        drawWindowForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
     }
     // TODO draw sprites
 }
@@ -104,6 +113,36 @@ private fun drawBackgroundForScanlineInViewport(
 
         val iTile = tileX + 32 * tileY
         val tileId = memory.get(bgTileMapHead + iTile)
+
+        val colorId: Int2 = getColorIdOfPixelOnTile(memory, LCDC4, tileId, xOnTile, yOnTile)
+        drawPixelToScreen(lx, ly, colorId)
+    }
+}
+
+private fun drawWindowForScanlineInViewport(
+    memory: Memory,
+    LCDC: Int8,
+    ly: Int,
+    drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit
+) {
+    val windowTileMapHead: Address = if ((LCDC and 1.shl(6)) > 0) 0x9C00 else 0x9800
+    val LCDC4 = (LCDC and 1.shl(4)) > 0
+    val WX = memory.get(ADDR_WX) // X position plus 7
+    val WY = memory.get(ADDR_WY)
+    if (ly < WY) {
+        return
+    }
+    val yOnWindow = ly - WY
+    val tileY = yOnWindow / TILE_H
+    val yOnTile = yOnWindow % TILE_H
+    for (lx in 0 until VIEWPORT_W) {
+        if (lx < WX - 7) continue
+        val xOnWindow = lx - (WX - 7)
+        val tileX = xOnWindow / TILE_W
+        val xOnTile = xOnWindow % TILE_W
+
+        val iTile = tileX + 32 * tileY
+        val tileId = memory.get(windowTileMapHead + iTile)
 
         val colorId: Int2 = getColorIdOfPixelOnTile(memory, LCDC4, tileId, xOnTile, yOnTile)
         drawPixelToScreen(lx, ly, colorId)

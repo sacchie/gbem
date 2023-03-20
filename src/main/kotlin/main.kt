@@ -103,6 +103,8 @@ class MockMemoryImpl : Memory {
         return when (addr) {
             ADDR_SCX -> (counter++ / 200) % 256
             ADDR_SCY -> (counter++ / 400) % 256
+            ADDR_WX -> 10
+            ADDR_WY -> 100
             ADDR_LCDC -> 0b10100011
             else -> DUMMY_DATA[addr % 16]
         }
