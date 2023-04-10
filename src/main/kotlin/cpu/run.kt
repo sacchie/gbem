@@ -187,6 +187,21 @@ fun opResN(n: Int, get: () -> Int8,  set: (d: Int8) -> Unit) {
     set(get().and(1.shl(n).inv()))
 }
 
+fun opCall(regs: Registers, memory: Memory, n: Int16) {
+    regs.sp().set(regs.sp().get() - 2)
+    memory.set16(regs.sp().get(), regs.pc().get() + 3)
+    regs.pc().set(n)
+}
+
+fun runIfConditionSatisfied(regs: Registers, f: ConditionalJumpFlag, cb: () -> Unit) {
+    if (f == ConditionalJumpFlag.NZ && !regs.flag().isZeroOn()
+        || f == ConditionalJumpFlag.Z && regs.flag().isZeroOn()
+        || f == ConditionalJumpFlag.NC && !regs.flag().isCarryOn()
+        || f == ConditionalJumpFlag.C && !regs.flag().isCarryOn()) {
+        cb()
+    }
+}
+
 fun Op.run(regs: Registers, memory: Memory) {
     when (this) {
         is OpLdR8R8 -> {
@@ -720,6 +735,38 @@ fun Op.run(regs: Registers, memory: Memory) {
         is OpEi -> {
             memory.set8(0xFFFF, 0xFF)
             regs.pc().inc()
+        }
+
+        is OpJpN16 -> {
+            regs.pc().set(n)
+        }
+
+        is OpJpHl -> {
+            regs.pc().set(regs.hl().get())
+        }
+
+        is OpJpFNn -> {
+            runIfConditionSatisfied(regs, f) {
+                regs.pc().set(n)
+            }
+        }
+
+        is OpJrD8 -> {
+            regs.pc().set(regs.pc().get() + (d.xor(0x80) - 0x80))
+        }
+
+        is OpJrFD8 -> {
+            runIfConditionSatisfied(regs, f) {
+                regs.pc().set(regs.pc().get() + (d.xor(0x80) - 0x80))
+            }
+        }
+
+        is OpCallN16 -> {
+            opCall(regs, memory, n)
+        }
+
+        is OpCallFN16 -> {
+            runIfConditionSatisfied(regs, f) { opCall(regs, memory, n) }
         }
     }
 }

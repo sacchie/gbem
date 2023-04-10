@@ -31,7 +31,8 @@ interface GPR<T> {
 // program counter
 interface PC {
     fun get(): Int16
-    fun inc(diff: Int16 = 1)
+    fun inc(diff: Int16 = 1) { set(get() + diff) }
+    fun set(addr: Int16)
 }
 
 // flag register
@@ -140,9 +141,7 @@ data class Registers(
 
     fun pc(): PC = object : PC {
         override fun get(): Int16 = pc
-        override fun inc(diff: Int16) {
-            pc += diff
-        }
+        override fun set(addr: Int16) { pc = addr }
     }
 
     fun flag(): Flag = object : Flag {

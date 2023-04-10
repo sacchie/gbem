@@ -26,6 +26,10 @@ enum class RegEnum8(val num: Int8) {
     }
 }
 
+enum class ConditionalJumpFlag {
+    NZ, Z, NC, C
+}
+
 interface Op
 data class OpLdR8R8(val x: RegEnum8, val y: RegEnum8): Op
 data class OpLdR8D8(val r: RegEnum8, val d: Int8): Op
@@ -112,7 +116,7 @@ class OpBitNHL(val n: Int) : Op
 data class OpSetNR8(val n: Int, val r: RegEnum8) : Op
 class OpSetNHL(val n: Int) : Op
 data class OpResNR8(val n: Int, val r: RegEnum8) : Op
-class OpResNHL(val n: Int) : Op
+data class OpResNHL(val n: Int) : Op
 class OpCcf: Op
 class OpScf: Op
 class OpNop: Op
@@ -120,6 +124,13 @@ class OpHalt: Op
 class OpStop: Op
 class OpDi: Op
 class OpEi: Op
+data class OpJpN16(val n: Int16): Op
+class OpJpHl: Op
+data class OpJpFNn(val f: ConditionalJumpFlag, val n: Int16): Op
+data class OpJrD8(val d: Int8): Op
+data class OpJrFD8(val f: ConditionalJumpFlag, val d: Int8): Op
+data class OpCallN16(val n: Int16): Op
+data class OpCallFN16(val f: ConditionalJumpFlag, val n: Int16): Op
 
 fun parse(memory: Memory, address: Int16): Op {
     val opcode = memory.get8(address)
