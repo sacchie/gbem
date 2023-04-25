@@ -47,7 +47,7 @@ fun drawBackgroundTileToScreen(
         for (xOnTile in 0..7) {
             val xOnScreen = tileX * TILE_W + xOnTile
             val yOnScreen = tileY * TILE_H + yOnTile
-            val colorId: Int2 = getColorIdOfPixelOnTile(memory, LCDC4, tileId, xOnTile, yOnTile)
+            val colorId: Int2 = getColorIdOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
             drawPixelToScreen(xOnScreen, yOnScreen, colorId)
         }
     }
@@ -90,7 +90,7 @@ fun drawScanlineInViewport(
     if (windowEnabled && bgAndWindowEnabled) {
         drawWindowForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
     }
-    // TODO draw sprites
+    drawSpritesForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
 }
 
 private fun drawBackgroundForScanlineInViewport(
@@ -114,7 +114,7 @@ private fun drawBackgroundForScanlineInViewport(
         val iTile = tileX + 32 * tileY
         val tileId = memory.get(bgTileMapHead + iTile)
 
-        val colorId: Int2 = getColorIdOfPixelOnTile(memory, LCDC4, tileId, xOnTile, yOnTile)
+        val colorId: Int2 = getColorIdOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
         drawPixelToScreen(lx, ly, colorId)
     }
 }
@@ -144,15 +144,51 @@ private fun drawWindowForScanlineInViewport(
         val iTile = tileX + 32 * tileY
         val tileId = memory.get(windowTileMapHead + iTile)
 
-        val colorId: Int2 = getColorIdOfPixelOnTile(memory, LCDC4, tileId, xOnTile, yOnTile)
+        val colorId: Int2 = getColorIdOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
         drawPixelToScreen(lx, ly, colorId)
+    }
+}
+
+private fun drawSpritesForScanlineInViewport(
+    memory: Memory,
+    LCDC: Int8,
+    ly: Int,
+    drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit
+) {
+    // OAM (0xFE00-FE9F) から ly にあるsprite（上限10個）を取ってきて、描画
+    val is8x16Mode = LCDC.and(0b100) > 0
+    var drawCount = 0
+    for (headAddress in 0xFE00..0xFE9F step 4) {
+        val yPosition = memory.get(headAddress) - 16
+        val xPosition = memory.get(headAddress + 1) - 8
+        val tileId = memory.get(headAddress + 2)
+        val attributes = memory.get(headAddress + 3)
+        // TODO bit7 BG and Window over OBJ (0=No, 1=BG and Window colors 1-3 over the OBJ)
+        // Assuming Bit7=0 (No)
+        val yFlip = attributes.and(0b01000000) > 0
+        val xFlip = attributes.and(0b00100000) > 0
+        val paletteNumber = attributes.and(0b00010000) > 0
+        // スプライトの存在範囲y座標：yPosition - yPosition + 7/15
+        if (ly in yPosition until yPosition + if (is8x16Mode) 16 else 8) {
+            drawCount++
+            val yOnTile = if (yFlip) 15 - (ly - yPosition) else ly - yPosition
+            for (xTmp in 0 until 8) {
+                val xOnTile = if (xFlip) 7 - (xTmp) else xTmp
+                val xOnScreen = xPosition + xTmp
+                val colorId = getColorIdOfPixelOnTileForSprites(memory, tileId, xOnTile, yOnTile)
+
+            }
+            if (drawCount == 10) {
+                break
+            }
+        }
     }
 }
 
 /**
  * LCDC4, タイルID、タイル上の(x,y) → カラーID
  */
-private fun getColorIdOfPixelOnTile(
+private fun getColorIdOfPixelOnTileForBackgroundAndWindow(
     memory: Memory,
     LCDC4: Boolean,
     tileId: Int8,
@@ -160,6 +196,25 @@ private fun getColorIdOfPixelOnTile(
     yOnTile: Int
 ): Int2 {
     val tileDataBaseAddress = if (LCDC4) 0x8000 else (if (tileId < 128) 0x9000 else 0x8000)
+    return getColorIdOfPixelOnTileForTileDataBaseAddress(memory, tileDataBaseAddress, tileId, xOnTile, yOnTile)
+}
+
+private fun getColorIdOfPixelOnTileForSprites(
+    memory: Memory,
+    tileId: Int8,
+    xOnTile: Int,
+    yOnTile: Int
+): Int2 {
+    return getColorIdOfPixelOnTileForTileDataBaseAddress(memory, 0x8000, tileId, xOnTile, yOnTile)
+}
+
+private fun getColorIdOfPixelOnTileForTileDataBaseAddress(
+    memory: Memory,
+    tileDataBaseAddress: Address,
+    tileId: Int8,
+    xOnTile: Int,
+    yOnTile: Int
+): Int2 {
     val TILE_BYTES = 16
     val tileDataHeadAddress = tileDataBaseAddress + tileId * TILE_BYTES
     val byte0 = memory.get(tileDataHeadAddress + 2 * yOnTile + 0)
