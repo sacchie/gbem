@@ -6,7 +6,14 @@ import org.junit.jupiter.api.Test
 internal class OpTest {
     private fun makeMemory(vals: MutableList<Int8>) = object : Memory {
         override fun get8(addr: Int16): Int8 = vals[addr]
+        override fun get16(addr: Int16): Int16 {
+            TODO("Not yet implemented")
+        }
+
         override fun set8(addr: Int16, int8: Int8) { vals[addr] = int8 }
+        override fun set16(addr: Int16, int16: Int16) {
+            TODO("Not yet implemented")
+        }
     }
 
     @Test

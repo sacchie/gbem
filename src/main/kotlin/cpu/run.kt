@@ -193,12 +193,20 @@ fun opCall(regs: Registers, memory: Memory, n: Int16) {
     regs.pc().set(n)
 }
 
-fun runIfConditionSatisfied(regs: Registers, f: ConditionalJumpFlag, cb: () -> Unit) {
+fun opRet(regs: Registers, memory: Memory) {
+    val pc = memory.get16(regs.sp().get())
+    regs.pc().set(pc)
+    regs.sp().set(regs.sp().get() + 2)
+}
+
+fun runIfConditionSatisfied(regs: Registers, f: ConditionalJumpFlag, thenDo: () -> Unit, elseDo: () -> Unit) {
     if (f == ConditionalJumpFlag.NZ && !regs.flag().isZeroOn()
         || f == ConditionalJumpFlag.Z && regs.flag().isZeroOn()
         || f == ConditionalJumpFlag.NC && !regs.flag().isCarryOn()
         || f == ConditionalJumpFlag.C && !regs.flag().isCarryOn()) {
-        cb()
+        thenDo()
+    } else {
+        elseDo()
     }
 }
 
@@ -746,8 +754,10 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpJpFNn -> {
-            runIfConditionSatisfied(regs, f) {
+            runIfConditionSatisfied(regs, f, {
                 regs.pc().set(n)
+            }) {
+                regs.pc().inc(3)
             }
         }
 
@@ -756,8 +766,10 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpJrFD8 -> {
-            runIfConditionSatisfied(regs, f) {
+            runIfConditionSatisfied(regs, f, {
                 regs.pc().set(regs.pc().get() + (d.xor(0x80) - 0x80))
+            }) {
+                regs.pc().inc(2)
             }
         }
 
@@ -766,7 +778,27 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpCallFN16 -> {
-            runIfConditionSatisfied(regs, f) { opCall(regs, memory, n) }
+            runIfConditionSatisfied(regs, f, { opCall(regs, memory, n) }) {
+                regs.pc().inc(3)
+            }
+        }
+
+        is OpRet -> {
+            opRet(regs, memory)
+        }
+
+        is OpRetF -> {
+            runIfConditionSatisfied(regs, f, { opRet(regs, memory) }) {
+                regs.pc().inc()
+            }
+        }
+
+        is OpRetI -> {
+            throw UnsupportedOperationException()
+        }
+
+        is OpRstN8 -> {
+            opCall(regs, memory, n.v)
         }
     }
 }

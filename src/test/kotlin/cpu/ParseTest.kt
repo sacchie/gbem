@@ -7,7 +7,14 @@ internal class ParseTest {
 
     private fun makeMemory(vals: List<Int8>) = object : Memory {
         override fun get8(addr: Int16): Int8 = vals[addr]
+        override fun get16(addr: Int16): Int16 {
+            TODO("Not yet implemented")
+        }
+
         override fun set8(addr: Int16, int8: Int8) { throw UnsupportedOperationException() }
+        override fun set16(addr: Int16, int16: Int16) {
+            TODO("Not yet implemented")
+        }
     }
 
     @Test

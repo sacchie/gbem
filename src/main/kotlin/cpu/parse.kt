@@ -131,6 +131,21 @@ data class OpJrD8(val d: Int8): Op
 data class OpJrFD8(val f: ConditionalJumpFlag, val d: Int8): Op
 data class OpCallN16(val n: Int16): Op
 data class OpCallFN16(val f: ConditionalJumpFlag, val n: Int16): Op
+class OpRet : Op
+data class OpRetF(val f: ConditionalJumpFlag): Op
+class OpRetI:Op
+data class OpRstN8(val n: Num): Op {
+    enum class Num(val v: Int16) {
+        N_00(0x00),
+        N_08(0x08),
+        N_10(0x10),
+        N_18(0x18),
+        N_20(0x20),
+        N_28(0x28),
+        N_30(0x30),
+        N_38(0x38),
+    }
+}
 
 fun parse(memory: Memory, address: Int16): Op {
     val opcode = memory.get8(address)
