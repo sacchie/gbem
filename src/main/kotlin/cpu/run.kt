@@ -546,7 +546,7 @@ fun Op.run(regs: Registers, memory: Memory) {
             regs.pc().inc(2)
         }
 
-        is OpLdSpAndD8 -> {
+        is OpLdHLSpAndD8 -> {
             val spVal = regs.sp().get()
             val hlNew = if (d < 0x80) spVal + d else spVal - (0x100 - d)
             val hlSet = (hlNew + 0x10000) % 0x10000
