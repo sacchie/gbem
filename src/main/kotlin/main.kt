@@ -24,8 +24,12 @@ fun main(args: Array<String>) {
     val height = 256
     val zoom = 5
     // Ref. https://gbdev.io/pandocs/Tile_Data.html
-    val COLOR =
-        listOf(Color(0x08, 0x18, 0x20), Color(0x34, 0x68, 0x56), Color(0x88, 0xc0, 0x70), Color(0xe0, 0xf8, 0xd0))
+    val COLOR = mapOf(
+        LCDColor.Black to Color(0x08, 0x18, 0x20),
+        LCDColor.DarkGray to Color(0x34, 0x68, 0x56),
+        LCDColor.LightGray to Color(0x88, 0xc0, 0x70),
+        LCDColor.White to Color(0xe0, 0xf8, 0xd0),
+    )
 
     val mainWindow = Window(zoom * 160, zoom * 144, "gbem")
     val backgroundDebugWindow = Window(zoom * width, zoom * height, "gbem background debug")
@@ -41,16 +45,16 @@ fun main(args: Array<String>) {
 
         // draw main window
         mainWindow.draw { buf ->
-            drawViewport(memory) { x, y, colorId ->
-                buf.color = COLOR[colorId]
+            drawViewport(memory) { x, y, color ->
+                buf.color = COLOR[color]
                 buf.fillRect(x * zoom, y * zoom, zoom, zoom)
             }
         }
 
         // draw background debug window
         backgroundDebugWindow.draw { buf ->
-            drawBackgroundToScreen(memory) { x, y, colorId ->
-                buf.color = COLOR[colorId]
+            drawBackgroundToScreen(memory) { x, y, color ->
+                buf.color = COLOR[color]
                 buf.fillRect(x * zoom, y * zoom, zoom, zoom)
             }
             val left = memory.get(ADDR_SCX)
@@ -106,6 +110,7 @@ class MockMemoryImpl : Memory {
             ADDR_WX -> 10
             ADDR_WY -> 100
             ADDR_LCDC -> 0b10100011
+            ADDR_BGP -> 0b00_01_10_11
             else -> DUMMY_DATA[addr % 16]
         }
     }

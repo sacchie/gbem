@@ -11,17 +11,22 @@ package ppu
 
 // VRAM state, some I/O registers -> screen pixels
 
+// Note about palette
+// for sprites, DotData = 0 means transparent
 
 const val ADDR_LCDC = 0xFF40
 const val ADDR_SCY = 0xFF42
 const val ADDR_SCX = 0xFF43
+const val ADDR_BGP = 0xFF47
+const val ADDR_OBP0 = 0xFF48
+const val ADDR_OBP1 = 0xFF49
 const val ADDR_WY = 0xFF4A
 const val ADDR_WX = 0xFF4B
 
 /**
  * Renders full background (256x256)
  */
-fun drawBackgroundToScreen(memory: Memory, drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit) {
+fun drawBackgroundToScreen(memory: Memory, drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit) {
     val LCDC = memory.get(ADDR_LCDC)
     // Ignoring LCDC.0 (BG Enabled)
     val bgTileMapHead: Address = if ((LCDC and 0b1000) == 0b1000) 0x9C00 else 0x9800
@@ -41,14 +46,16 @@ fun drawBackgroundTileToScreen(
     tileY: Int,
     tileId: Int8,
     LCDC4: Boolean,
-    drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit
+    drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit
 ) {
+    val BGP = memory.get(ADDR_BGP)
     for (yOnTile in 0..7) {
         for (xOnTile in 0..7) {
             val xOnScreen = tileX * TILE_W + xOnTile
             val yOnScreen = tileY * TILE_H + yOnTile
-            val colorId: Int2 = getColorIdOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
-            drawPixelToScreen(xOnScreen, yOnScreen, colorId)
+            val dotData = getDotDataOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
+            val color = getColorForBackgroundAndWindow(dotData, BGP)
+            drawPixelToScreen(xOnScreen, yOnScreen, color)
         }
     }
 }
@@ -59,6 +66,9 @@ const val SCREEN_W = 256
 const val SCREEN_H = 256
 const val VIEWPORT_W = 160
 const val VIEWPORT_H = 144
+enum class LCDColor {
+    White, LightGray, DarkGray, Black;
+}
 
 /**
  * The graphics are rendered from top to bottom in a loop like this:
@@ -66,7 +76,7 @@ const val VIEWPORT_H = 144
  * - Overwrite the line buffer with row LY from the window tile view.
  * - Sprite engine generates a 1-pixel section of the sprites, where they intersect LY and overwrites the line buffer with this.
  */
-fun drawViewport(memory: Memory, drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit) {
+fun drawViewport(memory: Memory, drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit) {
     for (ly in 0 until VIEWPORT_H) {
         // TODO set LY register
         drawScanlineInViewport(memory, ly, drawPixelToScreen)
@@ -79,7 +89,7 @@ fun drawViewport(memory: Memory, drawPixelToScreen: (x: Int, y: Int, colorId: In
 fun drawScanlineInViewport(
     memory: Memory,
     ly: Int,
-    drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit,
+    drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit,
 ) {
     val LCDC = memory.get(ADDR_LCDC)
     val bgAndWindowEnabled = (LCDC and 0x0001) == 1
@@ -90,14 +100,14 @@ fun drawScanlineInViewport(
     if (windowEnabled && bgAndWindowEnabled) {
         drawWindowForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
     }
-    drawSpritesForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
+//    drawSpritesForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
 }
 
 private fun drawBackgroundForScanlineInViewport(
     memory: Memory,
     LCDC: Int8,
     ly: Int,
-    drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit
+    drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit
 ) {
     val bgTileMapHead: Address = if ((LCDC and 0b1000) == 0b1000) 0x9C00 else 0x9800
     val LCDC4 = (LCDC and 0b10000) == 0b10000
@@ -106,6 +116,7 @@ private fun drawBackgroundForScanlineInViewport(
     val yOnScreen = (SCY + ly) % SCREEN_H
     val tileY = yOnScreen / TILE_H
     val yOnTile = yOnScreen % TILE_H
+    val BGP = memory.get(ADDR_BGP)
     for (lx in 0 until VIEWPORT_W) {
         val xOnScreen = (SCX + lx) % SCREEN_W
         val tileX = xOnScreen / TILE_W
@@ -114,16 +125,45 @@ private fun drawBackgroundForScanlineInViewport(
         val iTile = tileX + 32 * tileY
         val tileId = memory.get(bgTileMapHead + iTile)
 
-        val colorId: Int2 = getColorIdOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
-        drawPixelToScreen(lx, ly, colorId)
+        val dotData: Int2 = getDotDataOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
+        val color = getColorForBackgroundAndWindow(dotData, BGP)
+        drawPixelToScreen(lx, ly, color)
     }
+}
+
+private fun getColorForBackgroundAndWindow(dotData: Int2, BGP: Int8): LCDColor {
+    return toColor(when (dotData) {
+        0 -> BGP.and(0b11)
+        1 -> BGP.and(0b1100).shr(2)
+        2 -> BGP.and(0b110000).shr(4)
+        3 -> BGP.and(0b11000000).shr(6)
+        else -> throw IllegalArgumentException()
+    })
+}
+
+private fun getColorForSprite(dotData: Int2, BGP: Int8): LCDColor {
+    return toColor(when (dotData) {
+        0 -> throw IllegalArgumentException() // transparent
+        1 -> BGP.and(0b1100).shr(2)
+        2 -> BGP.and(0b110000).shr(4)
+        3 -> BGP.and(0b11000000).shr(6)
+        else -> throw IllegalArgumentException()
+    })
+}
+
+private fun toColor(value: Int2) = when (value) {
+    0 -> LCDColor.White
+    1 -> LCDColor.LightGray
+    2 -> LCDColor.DarkGray
+    3 -> LCDColor.Black
+    else -> throw IllegalArgumentException()
 }
 
 private fun drawWindowForScanlineInViewport(
     memory: Memory,
     LCDC: Int8,
     ly: Int,
-    drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit
+    drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit
 ) {
     val windowTileMapHead: Address = if ((LCDC and 1.shl(6)) > 0) 0x9C00 else 0x9800
     val LCDC4 = (LCDC and 1.shl(4)) > 0
@@ -135,6 +175,7 @@ private fun drawWindowForScanlineInViewport(
     val yOnWindow = ly - WY
     val tileY = yOnWindow / TILE_H
     val yOnTile = yOnWindow % TILE_H
+    val BGP = memory.get(ADDR_BGP)
     for (lx in 0 until VIEWPORT_W) {
         if (lx < WX - 7) continue
         val xOnWindow = lx - (WX - 7)
@@ -144,8 +185,9 @@ private fun drawWindowForScanlineInViewport(
         val iTile = tileX + 32 * tileY
         val tileId = memory.get(windowTileMapHead + iTile)
 
-        val colorId: Int2 = getColorIdOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
-        drawPixelToScreen(lx, ly, colorId)
+        val dotData = getDotDataOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
+        val color = getColorForBackgroundAndWindow(dotData, BGP)
+        drawPixelToScreen(lx, ly, color)
     }
 }
 
@@ -153,7 +195,7 @@ private fun drawSpritesForScanlineInViewport(
     memory: Memory,
     LCDC: Int8,
     ly: Int,
-    drawPixelToScreen: (x: Int, y: Int, colorId: Int2) -> Unit
+    drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit
 ) {
     // OAM (0xFE00-FE9F) から ly にあるsprite（上限10個）を取ってきて、描画
     val is8x16Mode = LCDC.and(0b100) > 0
@@ -175,8 +217,8 @@ private fun drawSpritesForScanlineInViewport(
             for (xTmp in 0 until 8) {
                 val xOnTile = if (xFlip) 7 - (xTmp) else xTmp
                 val xOnScreen = xPosition + xTmp
-                val colorId = getColorIdOfPixelOnTileForSprites(memory, tileId, xOnTile, yOnTile)
-
+                val dotData = getDotDataOfPixelOnTileForSprites(memory, tileId, xOnTile, yOnTile)
+                // TODO next time
             }
             if (drawCount == 10) {
                 break
@@ -186,9 +228,9 @@ private fun drawSpritesForScanlineInViewport(
 }
 
 /**
- * LCDC4, タイルID、タイル上の(x,y) → カラーID
+ * LCDC4, タイルID、タイル上の(x,y) → dot data
  */
-private fun getColorIdOfPixelOnTileForBackgroundAndWindow(
+private fun getDotDataOfPixelOnTileForBackgroundAndWindow(
     memory: Memory,
     LCDC4: Boolean,
     tileId: Int8,
@@ -196,19 +238,19 @@ private fun getColorIdOfPixelOnTileForBackgroundAndWindow(
     yOnTile: Int
 ): Int2 {
     val tileDataBaseAddress = if (LCDC4) 0x8000 else (if (tileId < 128) 0x9000 else 0x8000)
-    return getColorIdOfPixelOnTileForTileDataBaseAddress(memory, tileDataBaseAddress, tileId, xOnTile, yOnTile)
+    return getDotDataOfPixelOnTileForTileDataBaseAddress(memory, tileDataBaseAddress, tileId, xOnTile, yOnTile)
 }
 
-private fun getColorIdOfPixelOnTileForSprites(
+private fun getDotDataOfPixelOnTileForSprites(
     memory: Memory,
     tileId: Int8,
     xOnTile: Int,
     yOnTile: Int
 ): Int2 {
-    return getColorIdOfPixelOnTileForTileDataBaseAddress(memory, 0x8000, tileId, xOnTile, yOnTile)
+    return getDotDataOfPixelOnTileForTileDataBaseAddress(memory, 0x8000, tileId, xOnTile, yOnTile)
 }
 
-private fun getColorIdOfPixelOnTileForTileDataBaseAddress(
+private fun getDotDataOfPixelOnTileForTileDataBaseAddress(
     memory: Memory,
     tileDataBaseAddress: Address,
     tileId: Int8,
@@ -220,8 +262,8 @@ private fun getColorIdOfPixelOnTileForTileDataBaseAddress(
     val byte0 = memory.get(tileDataHeadAddress + 2 * yOnTile + 0)
     val byte1 = memory.get(tileDataHeadAddress + 2 * yOnTile + 1)
     val bit = 7 - xOnTile
-    val colorId: Int2 = ((byte0 and (1 shl bit)) shr bit) + ((byte1 and (1 shl bit)) shr bit) * 2
-    return colorId
+    val dotData: Int2 = ((byte0 and (1 shl bit)) shr bit) + ((byte1 and (1 shl bit)) shr bit) * 2
+    return dotData
 }
 
 typealias Address = Int
