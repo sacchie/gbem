@@ -100,7 +100,7 @@ fun drawScanlineInViewport(
     if (windowEnabled && bgAndWindowEnabled) {
         drawWindowForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
     }
-//    drawSpritesForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
+    drawSpritesForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
 }
 
 private fun drawBackgroundForScanlineInViewport(
@@ -141,14 +141,15 @@ private fun getColorForBackgroundAndWindow(dotData: Int2, BGP: Int8): LCDColor {
     })
 }
 
-private fun getColorForSprite(dotData: Int2, BGP: Int8): LCDColor {
-    return toColor(when (dotData) {
-        0 -> throw IllegalArgumentException() // transparent
-        1 -> BGP.and(0b1100).shr(2)
-        2 -> BGP.and(0b110000).shr(4)
-        3 -> BGP.and(0b11000000).shr(6)
+// null means transparent
+private fun getColorForSprite(dotData: Int2, OBP: Int8): LCDColor? {
+    return (when (dotData) {
+        0 -> null // transparent
+        1 -> OBP.and(0b1100).shr(2)
+        2 -> OBP.and(0b110000).shr(4)
+        3 -> OBP.and(0b11000000).shr(6)
         else -> throw IllegalArgumentException()
-    })
+    })?.let { toColor(it) }
 }
 
 private fun toColor(value: Int2) = when (value) {
@@ -200,16 +201,16 @@ private fun drawSpritesForScanlineInViewport(
     // OAM (0xFE00-FE9F) から ly にあるsprite（上限10個）を取ってきて、描画
     val is8x16Mode = LCDC.and(0b100) > 0
     var drawCount = 0
-    for (headAddress in 0xFE00..0xFE9F step 4) {
-        val yPosition = memory.get(headAddress) - 16
-        val xPosition = memory.get(headAddress + 1) - 8
-        val tileId = memory.get(headAddress + 2)
-        val attributes = memory.get(headAddress + 3)
+    for (oamHeadAddress in 0xFE00..0xFE9F step 4) {
+        val yPosition = memory.get(oamHeadAddress) - 16
+        val xPosition = memory.get(oamHeadAddress + 1) - 8
+        val tileId = memory.get(oamHeadAddress + 2)
+        val attributes = memory.get(oamHeadAddress + 3)
         // TODO bit7 BG and Window over OBJ (0=No, 1=BG and Window colors 1-3 over the OBJ)
         // Assuming Bit7=0 (No)
         val yFlip = attributes.and(0b01000000) > 0
         val xFlip = attributes.and(0b00100000) > 0
-        val paletteNumber = attributes.and(0b00010000) > 0
+        val OBP = if (attributes.and(0b00010000) > 0) memory.get(ADDR_OBP1) else memory.get(ADDR_OBP0)
         // スプライトの存在範囲y座標：yPosition - yPosition + 7/15
         if (ly in yPosition until yPosition + if (is8x16Mode) 16 else 8) {
             drawCount++
@@ -218,7 +219,10 @@ private fun drawSpritesForScanlineInViewport(
                 val xOnTile = if (xFlip) 7 - (xTmp) else xTmp
                 val xOnScreen = xPosition + xTmp
                 val dotData = getDotDataOfPixelOnTileForSprites(memory, tileId, xOnTile, yOnTile)
-                // TODO next time
+                val color = getColorForSprite(dotData, OBP)
+                if (color != null) {
+                    drawPixelToScreen(xOnScreen, ly, color)
+                }
             }
             if (drawCount == 10) {
                 break

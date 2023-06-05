@@ -1,5 +1,6 @@
 import ppu.*
 import java.awt.Color
+import java.lang.IllegalArgumentException
 import java.time.Duration
 import java.time.Instant
 import kotlin.math.roundToInt
@@ -98,7 +99,7 @@ fun main(args: Array<String>) {
     println("Emulation finished")
 }
 
-private val DUMMY_DATA =
+private val DUMMY_TILE_DATA =
     listOf(0x3C, 0x7E, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x7E, 0x5E, 0x7E, 0x0A, 0x7C, 0x56, 0x38, 0x7C)
 
 class MockMemoryImpl : Memory {
@@ -111,7 +112,27 @@ class MockMemoryImpl : Memory {
             ADDR_WY -> 100
             ADDR_LCDC -> 0b10100011
             ADDR_BGP -> 0b00_01_10_11
-            else -> DUMMY_DATA[addr % 16]
+            ADDR_OBP0 -> 0b00_01_10_11
+            ADDR_OBP1 -> 0b00_01_10_11
+            in 0x8000..0x8FFF -> DUMMY_TILE_DATA[addr % 16] // BG and Window tile data area (LCDC4=1)
+            in 0x8800..0x97FF -> DUMMY_TILE_DATA[addr % 16] // BG and Window tile data area (LCDC4=0)
+            in 0x9800..0x9BFF -> 0 // BG/Window tile map data (LCDC3/6=0)
+            in 0x9C00..0x9FFF -> 0 // BG/Window tile map data (LCDC3/6=1)
+            in 0xFE00..0xFE9F -> dummyOAM(addr) // OAM (4byte * 40)
+            else -> throw IllegalArgumentException("Address = $addr")
         }
+    }
+
+    private fun dummyOAM(addr: Address): Int8 {
+        val i = (addr - 0xFE00) / 4
+        val x = i * 8 * 2
+        val y = i * 8
+        // Bit7   BG and Window over OBJ (0=No, 1=BG and Window colors 1-3 over the OBJ)
+        // Bit6   Y flip          (0=Normal, 1=Vertically mirrored)
+        // Bit5   X flip          (0=Normal, 1=Horizontally mirrored)
+        // Bit4   Palette number  **Non CGB Mode Only** (0=OBP0, 1=OBP1)
+        // Bit3   Tile VRAM-Bank  **CGB Mode Only**     (0=Bank 0, 1=Bank 1)
+        // Bit2-0 Palette number  **CGB Mode Only**     (OBP0-7)
+        return listOf(y, x, 0, 0b00000000)[addr % 4]
     }
 }
