@@ -66,6 +66,7 @@ const val SCREEN_W = 256
 const val SCREEN_H = 256
 const val VIEWPORT_W = 160
 const val VIEWPORT_H = 144
+
 enum class LCDColor {
     White, LightGray, DarkGray, Black;
 }
@@ -91,16 +92,30 @@ fun drawScanlineInViewport(
     ly: Int,
     drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit,
 ) {
+    val pixelMap = mutableMapOf<Int, LCDColor>()
+
     val LCDC = memory.get(ADDR_LCDC)
     val bgAndWindowEnabled = (LCDC and 0x0001) == 1
     if (bgAndWindowEnabled) {
-        drawBackgroundForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
+        drawBackgroundForScanlineInViewport(memory, LCDC, ly) { x, _, color -> pixelMap[x] = color }
     }
     val windowEnabled = (LCDC and 1.shl(5)) > 0
     if (windowEnabled && bgAndWindowEnabled) {
-        drawWindowForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
+        drawWindowForScanlineInViewport(memory, LCDC, ly) { x, _, color -> pixelMap[x] = color }
     }
-    drawSpritesForScanlineInViewport(memory, LCDC, ly, drawPixelToScreen)
+    putSpritePixelsForScanlineInViewportToBuffer(memory, LCDC, ly) { x, color, bgAndWindowOverObj ->
+        if (bgAndWindowOverObj) {
+            if (pixelMap[x] == null) {
+                pixelMap[x] = color
+            }
+        } else {
+            pixelMap[x] = color
+        }
+    }
+
+    pixelMap.forEach { (x, color) ->
+        drawPixelToScreen(x, ly, color)
+    }
 }
 
 private fun drawBackgroundForScanlineInViewport(
@@ -132,13 +147,15 @@ private fun drawBackgroundForScanlineInViewport(
 }
 
 private fun getColorForBackgroundAndWindow(dotData: Int2, BGP: Int8): LCDColor {
-    return toColor(when (dotData) {
-        0 -> BGP.and(0b11)
-        1 -> BGP.and(0b1100).shr(2)
-        2 -> BGP.and(0b110000).shr(4)
-        3 -> BGP.and(0b11000000).shr(6)
-        else -> throw IllegalArgumentException()
-    })
+    return toColor(
+        when (dotData) {
+            0 -> BGP.and(0b11)
+            1 -> BGP.and(0b1100).shr(2)
+            2 -> BGP.and(0b110000).shr(4)
+            3 -> BGP.and(0b11000000).shr(6)
+            else -> throw IllegalArgumentException()
+        }
+    )
 }
 
 // null means transparent
@@ -192,11 +209,11 @@ private fun drawWindowForScanlineInViewport(
     }
 }
 
-private fun drawSpritesForScanlineInViewport(
+private fun putSpritePixelsForScanlineInViewportToBuffer(
     memory: Memory,
     LCDC: Int8,
     ly: Int,
-    drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit
+    putPixel: (x: Int, color: LCDColor, bgAndWindowOverObj: Boolean) -> Unit
 ) {
     // OAM (0xFE00-FE9F) から ly にあるsprite（上限10個）を取ってきて、描画
     val is8x16Mode = LCDC.and(0b100) > 0
@@ -206,8 +223,7 @@ private fun drawSpritesForScanlineInViewport(
         val xPosition = memory.get(oamHeadAddress + 1) - 8
         val tileId = memory.get(oamHeadAddress + 2)
         val attributes = memory.get(oamHeadAddress + 3)
-        // TODO bit7 BG and Window over OBJ (0=No, 1=BG and Window colors 1-3 over the OBJ)
-        // Assuming Bit7=0 (No)
+        val bgAndWindowOverObj = attributes.and(0b10000000) > 0
         val yFlip = attributes.and(0b01000000) > 0
         val xFlip = attributes.and(0b00100000) > 0
         val OBP = if (attributes.and(0b00010000) > 0) memory.get(ADDR_OBP1) else memory.get(ADDR_OBP0)
@@ -221,7 +237,7 @@ private fun drawSpritesForScanlineInViewport(
                 val dotData = getDotDataOfPixelOnTileForSprites(memory, tileId, xOnTile, yOnTile)
                 val color = getColorForSprite(dotData, OBP)
                 if (color != null) {
-                    drawPixelToScreen(xOnScreen, ly, color)
+                    putPixel(xOnScreen, color, bgAndWindowOverObj)
                 }
             }
             if (drawCount == 10) {

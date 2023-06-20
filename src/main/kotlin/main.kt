@@ -110,6 +110,14 @@ class MockMemoryImpl : Memory {
             ADDR_SCY -> (counter++ / 400) % 256
             ADDR_WX -> 10
             ADDR_WY -> 100
+            // 7	LCD and PPU enable	0=Off, 1=On
+            // 6	Window tile map area	0=9800-9BFF, 1=9C00-9FFF
+            // 5	Window enable	0=Off, 1=On
+            // 4	BG and Window tile data area	0=8800-97FF, 1=8000-8FFF
+            // 3	BG tile map area	0=9800-9BFF, 1=9C00-9FFF
+            // 2	OBJ size	0=8x8, 1=8x16
+            // 1	OBJ enable	0=Off, 1=On
+            // 0	BG and Window enable/priority	0=Off, 1=On
             ADDR_LCDC -> 0b10100011
             ADDR_BGP -> 0b00_01_10_11
             ADDR_OBP0 -> 0b00_01_10_11
@@ -133,6 +141,6 @@ class MockMemoryImpl : Memory {
         // Bit4   Palette number  **Non CGB Mode Only** (0=OBP0, 1=OBP1)
         // Bit3   Tile VRAM-Bank  **CGB Mode Only**     (0=Bank 0, 1=Bank 1)
         // Bit2-0 Palette number  **CGB Mode Only**     (OBP0-7)
-        return listOf(y, x, 0, 0b00000000)[addr % 4]
+        return listOf(y, x, 0, 0b00000000 + 0b10000000 * (i % 2))[addr % 4]
     }
 }

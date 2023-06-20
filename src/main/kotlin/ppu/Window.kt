@@ -16,7 +16,7 @@ class Window(private val width: Int, private  val height:Int, title: String) {
     init {
         val frame = JFrame(title)
         frame.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
-        frame.isResizable = false
+        frame.isResizable = true
         canvas = Canvas()
         canvas.setPreferredSize(Dimension(width, height))
 
