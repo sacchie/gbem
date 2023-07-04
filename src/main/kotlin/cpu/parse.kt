@@ -305,9 +305,43 @@ fun parse(memory: Memory, address: Int16): Op {
             0xEA -> OpLdD16A(memory.get16(address+1))
             0xFA -> OpLdAD16(memory.get16(address+1))
 
-            0xCB -> TODO()
+            0xCB -> parsePrefixed(memory.get8(address + 1))
 
             else -> null
+        }
+    }!!
+}
+
+private fun parsePrefixed(int8: Int8): Op {
+    return parseHorizontally(int8, 0x00..0x07, { OpRlcR8(it) }) { OpRlcHL() } ?:
+    parseHorizontally(int8, 0x08..0x0F, { OpRrcR8(it) }) { OpRrcHL() } ?:
+    parseHorizontally(int8, 0x10..0x17, { OpRlR8(it) }) { OpRlHL() } ?:
+    parseHorizontally(int8, 0x18..0x1F, { OpRrR8(it) }) { OpRrHL() } ?:
+    parseHorizontally(int8, 0x20..0x27, { OpSlaR8(it) }) { OpSlaHL() } ?:
+    parseHorizontally(int8, 0x28..0x2F, { OpSraR8(it) }) { OpSraHL() } ?:
+    parseHorizontally(int8, 0x30..0x37, { OpSwapR8(it) }) { OpSwapHL() } ?:
+    parseHorizontally(int8, 0x38..0x3F, { OpSrlR8(it) }) { OpSrlHL() } ?:
+    run {
+        when (int8) {
+            in 0x40..0x7F -> {
+                val n = (int8 - 0x40) / 8
+                val start = 0x40 + n * 8
+                val end = start + 7
+                parseHorizontally(int8, start..end, {OpBitNR8(n, it)}, {OpBitNHL(n)})
+            }
+            in 0x80..0xBF -> {
+                val n = (int8 - 0x80) / 8
+                val start = 0x80 + n * 8
+                val end = start + 7
+                parseHorizontally(int8, start..end, {OpResNR8(n, it)}, {OpResNHL(n)})
+            }
+            in 0xC0..0xFF -> {
+                val n = (int8 - 0xC0) / 8
+                val start = 0xC0 + n * 8
+                val end = start + 7
+                parseHorizontally(int8, start..end, {OpSetNR8(n, it)}, {OpSetNHL(n)})
+            }
+            else -> throw AssertionError()
         }
     }!!
 }
