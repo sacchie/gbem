@@ -204,6 +204,26 @@ fun parse(memory: Memory, address: Int16): Op {
                 val reg = listOf(RegEnum16.BC, RegEnum16.DE, RegEnum16.HL, RegEnum16.SP)[idx]
                 OpIncR16(reg)
             }
+            in 0x09..0x39 step 16 -> {
+                val idx = opcode / 16
+                val reg = listOf(RegEnum16.BC, RegEnum16.DE, RegEnum16.HL, RegEnum16.SP)[idx]
+                OpAddHLR16(reg)
+            }
+            in 0x0A..0x3A step 16 -> {
+                val idx = opcode / 16
+                when (idx) {
+                    0 -> OpLdABC()
+                    1 -> OpLdADE()
+                    2 -> OpLdiAHL()
+                    3 -> OpLddAHL()
+                    else -> throw AssertionError()
+                }
+            }
+            in 0x0B..0x3B step 16 -> {
+                val idx = opcode / 16
+                val reg = listOf(RegEnum16.BC, RegEnum16.DE, RegEnum16.HL, RegEnum16.SP)[idx]
+                OpDecR16(reg)
+            }
             else -> null
         }
     } ?:
