@@ -296,7 +296,7 @@ fun parse(memory: Memory, address: Int16): Op {
                 OpPushR16(reg)
             }
             0xC3 -> OpJpN16(memory.get16(address+1))
-            0xCC -> OpCallN16(memory.get16(address+1))
+            0xCD -> OpCallN16(memory.get16(address+1))
 
             0xC6 -> OpAddAD8(memory.get8(address+1))
             0xCE -> OpAdcAD8(memory.get8(address+1))
@@ -329,7 +329,9 @@ fun parse(memory: Memory, address: Int16): Op {
 
             else -> null
         }
-    }!!
+    } ?: run {
+        throw RuntimeException("Invalid opcode: ${opcode.toString(16)}, addr: ${address.toString(16)}")
+    }
 }
 
 private fun parsePrefixed(int8: Int8): Op {
