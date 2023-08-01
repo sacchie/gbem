@@ -78,7 +78,7 @@ fun opCpA(regs: Registers, d: Int8) {
 }
 
 fun opInc(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
-    val oldVal = get();
+    val oldVal = get()
     val setVal = (oldVal + 1) % 0x100
     set(setVal)
     regs.flag().setZero(setVal == 0)
@@ -87,7 +87,7 @@ fun opInc(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
 }
 
 fun opDec(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
-    val oldVal = get();
+    val oldVal = get()
     val setVal = ((oldVal - 1) + 0x100) % 0x100
     set(setVal)
     regs.flag().setZero(setVal == 0)
@@ -762,12 +762,12 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpJrD8 -> {
-            regs.pc().set(regs.pc().get() + (d.xor(0x80) - 0x80))
+            regs.pc().set(2 + regs.pc().get() + (d.xor(0x80) - 0x80))
         }
 
         is OpJrFD8 -> {
             runIfConditionSatisfied(regs, f, {
-                regs.pc().set(regs.pc().get() + (d.xor(0x80) - 0x80))
+                regs.pc().set(2 + regs.pc().get() + (d.xor(0x80) - 0x80))
             }) {
                 regs.pc().inc(2)
             }
