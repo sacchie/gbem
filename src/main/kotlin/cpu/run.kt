@@ -274,7 +274,8 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpLdToIoPort -> {
-            memory.set8(0xFF00 + d, regs.a().get())
+            // TODO
+            // memory.set8(0xFF00 + d, regs.a().get())
             regs.pc().inc(2)
         }
 
@@ -736,7 +737,8 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpDi -> {
-            memory.set8(0xFFFF, 0)
+            // TODO
+            // memory.set8(0xFFFF, 0)
             regs.pc().inc()
         }
 
