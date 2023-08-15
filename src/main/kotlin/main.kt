@@ -46,6 +46,7 @@ class MemoryImpl(private val romByteArray: ByteArray) : Memory {
     override fun get8(addr: Int16): Int8 = when (addr) {
         in 0x0000..romBankEnd() -> romByteArray[addr].toInt() and 0xFF
         in 0xC000..0xDFFF -> ram[addr - 0xC000]
+        0xFF44 -> 0 // LY TODO
         else -> throw RuntimeException("Invalid address: ${addr.toString(16)}")
     }
 
