@@ -55,6 +55,8 @@ data class Registers(
     private var hl: Int16 = 0,
     private var sp: Int16 = 0,
 ) {
+    override fun toString() = objToStringHex(this)
+
     fun af(): GPR<Int16> = object : GPR<Int16> {
         override fun get(): Int16 = af
         override fun set(x: Int16) {
