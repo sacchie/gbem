@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.4.32"
+    kotlin("jvm") version "1.9.0"
     application
 }
 
@@ -23,8 +23,8 @@ tasks.test {
     useJUnitPlatform()
 }
 
-tasks.withType<KotlinCompile>() {
-    kotlinOptions.jvmTarget = "11"
+kotlin { // Extension for easy setup
+    jvmToolchain(17) // Target version of generated JVM bytecode. See 7️⃣
 }
 
 application {
