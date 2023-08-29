@@ -9,7 +9,7 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers) {
     repeat(maxIterations) {
         val pc = registers.pc().get()
         val op = parse(memory, pc)
-        System.err.println("${pc.toString(16)}: $op")
+        System.err.println("0x${pc.toString(16)}: $op")
         //  CPUがstateを更新
         op.run(registers, memory)
         // System.err.println(registers)
@@ -26,7 +26,7 @@ fun main(args: Array<String>) {
 
     val cartridgeType = memory.getCartridgeType()
     val romSize = memory.getRomSize()
-    System.err.println("cartridgeType: ${cartridgeType.toString(16)}, romSize: ${romSize.toString(16)}")
+    System.err.println("cartridgeType: 0x${cartridgeType.toString(16)}, romSize: 0x${romSize.toString(16)}")
 
     val registers = Registers()
     loop(Int.MAX_VALUE, memory, registers)
@@ -47,7 +47,7 @@ class MemoryImpl(private val romByteArray: ByteArray) : Memory {
         in 0x0000..romBankEnd() -> romByteArray[addr].toInt() and 0xFF
         in 0xC000..0xDFFF -> ram[addr - 0xC000]
         0xFF44 -> 0 // LY TODO
-        else -> throw RuntimeException("Invalid address: ${addr.toString(16)}")
+        else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
     }
 
     override fun get16(addr: Int16): Int16 = when (addr) {
@@ -61,16 +61,16 @@ class MemoryImpl(private val romByteArray: ByteArray) : Memory {
             val hi = ram[addr - 0xC000 + 1]
             hi.shl(8) + lo
         }
-        else -> throw RuntimeException("Invalid address: ${addr.toString(16)}")
+        else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
     }
 
     override fun set8(addr: Int16, int8: Int8) {
         when (addr) {
             in 0xC000..0xDFFF -> {
                 ram[addr - 0xC000] = int8
-                System.err.println("set8: ${addr.toString(16)} <- $int8")
+                System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
             }
-            else -> throw RuntimeException("Invalid address: ${addr.toString(16)}")
+            else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
         }
     }
 
@@ -79,9 +79,9 @@ class MemoryImpl(private val romByteArray: ByteArray) : Memory {
             in 0xC000..0xDFFE -> {
                 ram[addr - 0xC000 + 0] = int16.lo()
                 ram[addr - 0xC000 + 1] = int16.hi()
-                System.err.println("set16: ${addr.toString(16)} <- $int16")
+                System.err.println("set16: [0x${addr.toString(16)}] <- 0x${int16.toString(16)}")
             }
-            else -> throw RuntimeException("Invalid address: ${addr.toString(16)}")
+            else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
         }
     }
 }
