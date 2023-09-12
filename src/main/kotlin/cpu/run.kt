@@ -191,12 +191,14 @@ fun opCall(regs: Registers, memory: Memory, n: Int16) {
     regs.sp().set(regs.sp().get() - 2)
     memory.set16(regs.sp().get(), regs.pc().get() + 3)
     regs.pc().set(n)
+    regs.callDepthForDebug += 1
 }
 
 fun opRet(regs: Registers, memory: Memory) {
     val pc = memory.get16(regs.sp().get())
     regs.pc().set(pc)
     regs.sp().set(regs.sp().get() + 2)
+    regs.callDepthForDebug -= 1
 }
 
 fun runIfConditionSatisfied(regs: Registers, f: ConditionalJumpFlag, thenDo: () -> Unit, elseDo: () -> Unit) {

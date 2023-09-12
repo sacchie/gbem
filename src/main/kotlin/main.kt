@@ -9,7 +9,7 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers) {
     repeat(maxIterations) {
         val pc = registers.pc().get()
         val op = parse(memory, pc)
-        System.err.println("0x${pc.toString(16)}: $op")
+        System.err.println("${"*".repeat(registers.callDepthForDebug)} 0x${pc.toString(16)}: $op")
         //  CPUがstateを更新
         op.run(registers, memory)
         // System.err.println(registers)

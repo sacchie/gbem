@@ -54,6 +54,7 @@ data class Registers(
     private var de: Int16 = 0,
     private var hl: Int16 = 0,
     private var sp: Int16 = 0,
+    var callDepthForDebug: Int = 0,
 ) {
     override fun toString() = objToStringHex(this)
 
