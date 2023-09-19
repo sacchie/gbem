@@ -340,7 +340,9 @@ fun Op.run(regs: Registers, memory: Memory) {
 
         is OpPopR16 -> {
             assert(r == RegEnum16.BC || r == RegEnum16.DE || r == RegEnum16.HL || r == RegEnum16.AF)
-            regs.gpr16(r).set(memory.get16(regs.sp().get()))
+            val popValue = memory.get16(regs.sp().get())
+            val setValue = if (r == RegEnum16.AF) popValue and 0xFFF0 else popValue
+            regs.gpr16(r).set(setValue)
             regs.sp().update { (it + 2) % 0x10000 }
             regs.pc().inc()
         }
@@ -526,12 +528,14 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpIncR16 -> {
+            assert(arrayOf(RegEnum16.BC, RegEnum16.DE, RegEnum16.HL, RegEnum16.SP).contains(r))
             val reg16 = regs.gpr16(r)
             reg16.set((reg16.get() + 1) % 0x10000)
             regs.pc().inc()
         }
 
         is OpDecR16 -> {
+            assert(arrayOf(RegEnum16.BC, RegEnum16.DE, RegEnum16.HL, RegEnum16.SP).contains(r))
             val reg16 = regs.gpr16(r)
             reg16.set(((reg16.get() - 1) + 0x10000) % 0x10000)
             regs.pc().inc()

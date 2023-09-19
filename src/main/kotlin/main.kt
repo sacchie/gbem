@@ -8,6 +8,11 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers) {
 
     repeat(maxIterations) {
         val pc = registers.pc().get()
+        if (pc == 0xc7d2) {
+            // 01-specialのforever:突入を検知するためだけのコード
+            // そのうち消す必要がある
+            throw RuntimeException("0xc7d2 reached")
+        }
         val op = parse(memory, pc)
         System.err.println("${"*".repeat(registers.callDepthForDebug)} 0x${pc.toString(16)}: $op")
         //  CPUがstateを更新
@@ -37,8 +42,13 @@ fun main(args: Array<String>) {
 // 8000-97FF: VRAM Tile Data https://gbdev.io/pandocs/Tile_Data.html
 // 9800-9FFF: VRAM Tile Maps https://gbdev.io/pandocs/Tile_Maps.html
 class MemoryImpl(private val romByteArray: ByteArray) : Memory {
+    companion object {
+        val HRAM_RANGE = 0xFF80..0xFFFE
+    }
+
     private val ram = MutableList(0x2000) {0}
     private val vram = MutableList(0x2000) {0}
+    private val hram = MutableList(HRAM_RANGE.count()) {0}
 
     fun getCartridgeType() = romByteArray[0x0147].toInt() and 0xFF
 
@@ -50,6 +60,7 @@ class MemoryImpl(private val romByteArray: ByteArray) : Memory {
         in 0x0000..romBankEnd() -> romByteArray[addr].toInt() and 0xFF
         in 0xC000..0xDFFF -> ram[addr - 0xC000]
         in 0x8000..0x9FFF -> vram[addr - 0x8000]
+        in HRAM_RANGE -> hram[addr - HRAM_RANGE.first]
         0xFF44 -> 0 // LY TODO
         else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
     }
@@ -81,6 +92,10 @@ class MemoryImpl(private val romByteArray: ByteArray) : Memory {
             }
             in 0x8000..0x9FFF -> {
                 vram[addr - 0x8000] = int8
+                System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
+            }
+            in HRAM_RANGE -> {
+                hram[addr - HRAM_RANGE.first] = int8
                 System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
             }
             else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
