@@ -94,6 +94,19 @@ class MemoryImpl(private val romByteArray: ByteArray) : Memory {
                 vram[addr - 0x8000] = int8
                 System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
             }
+            // TODO: https://gbdev.io/pandocs/Hardware_Reg_List.html
+            0xFF07 -> {}
+            0xFF0F -> {}
+            0xFFFF -> {}
+            0xFF26 -> {}
+            0xFF25 -> {}
+            0xFF24 -> {}
+            0xFF40 -> {}
+            0xFF43 -> {}
+            0xFF47 -> {}
+            0xFF42 -> {}
+            0xFF01 -> {}
+            0xFF02 -> {}
             in HRAM_RANGE -> {
                 hram[addr - HRAM_RANGE.first] = int8
                 System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
