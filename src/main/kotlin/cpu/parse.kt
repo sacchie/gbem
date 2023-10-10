@@ -30,111 +30,113 @@ enum class ConditionalJumpFlag {
     NZ, Z, NC, C
 }
 
-interface Op
-data class OpLdR8R8(val x: RegEnum8, val y: RegEnum8) : Op
-data class OpLdR8D8(val r: RegEnum8, val d: Int8) : Op
-data class OpLdR8HL(val r: RegEnum8) : Op
-data class OpLdHLR8(val r: RegEnum8) : Op
-data class OpLdHLD8(val d: Int8) : Op
-class OpLdABC : Op
-class OpLdADE : Op
-data class OpLdAD16(val d: Int16) : Op
-class OpLdBCA : Op
-class OpLdDEA : Op
-data class OpLdD16A(val d: Int16) : Op
-data class OpLdFromIoPort(val d: Int8) : Op
-data class OpLdToIoPort(val d: Int8) : Op
-class OpLdFromIoPortC : Op
-class OpLdToIoPortC : Op
-class OpLdiHLA : Op
-class OpLdiAHL : Op
-class OpLddHLA : Op
-class OpLddAHL : Op
-data class OpLdR16D16(val r: RegEnum16, val d: Int16) : Op
-data class OpLdD16SP(val d: Int16) : Op
-class OpLdSPHL : Op
-data class OpPushR16(val r: RegEnum16) : Op
-data class OpPopR16(val r: RegEnum16) : Op
+abstract class Op {
+    override fun toString() = objToStringHex(this)
+}
+class OpLdR8R8(val x: RegEnum8, val y: RegEnum8) : Op()
+class OpLdR8D8(val r: RegEnum8, val d: Int8) : Op()
+class OpLdR8HL(val r: RegEnum8) : Op()
+class OpLdHLR8(val r: RegEnum8) : Op()
+class OpLdHLD8(val d: Int8) : Op()
+class OpLdABC : Op()
+class OpLdADE : Op()
+class OpLdAD16(val d: Int16) : Op()
+class OpLdBCA : Op()
+class OpLdDEA : Op()
+class OpLdD16A(val d: Int16) : Op()
+class OpLdFromIoPort(val d: Int8) : Op()
+class OpLdToIoPort(val d: Int8) : Op()
+class OpLdFromIoPortC : Op()
+class OpLdToIoPortC : Op()
+class OpLdiHLA : Op()
+class OpLdiAHL : Op()
+class OpLddHLA : Op()
+class OpLddAHL : Op()
+class OpLdR16D16(val r: RegEnum16, val d: Int16) : Op()
+class OpLdD16SP(val d: Int16) : Op()
+class OpLdSPHL : Op()
+class OpPushR16(val r: RegEnum16) : Op()
+class OpPopR16(val r: RegEnum16) : Op()
 
-data class OpAddAR8(val r: RegEnum8) : Op
-data class OpAddAD8(val d: Int8) : Op
-class OpAddAHL : Op
-data class OpAdcAR8(val r: RegEnum8) : Op
-data class OpAdcAD8(val d: Int8) : Op
-class OpAdcAHL : Op
-data class OpSubAR8(val r: RegEnum8) : Op
-data class OpSubAD8(val d: Int8) : Op
-class OpSubAHL : Op
-data class OpSbcAR8(val r: RegEnum8) : Op
-data class OpSbcAD8(val d: Int8) : Op
-class OpSbcAHL : Op
-data class OpAndAR8(val r: RegEnum8) : Op
-data class OpAndAD8(val d: Int8) : Op
-class OpAndAHL : Op
-data class OpXorAR8(val r: RegEnum8) : Op
-data class OpXorAD8(val d: Int8) : Op
-class OpXorAHL : Op
-data class OpOrAR8(val r: RegEnum8) : Op
-data class OpOrAD8(val d: Int8) : Op
-class OpOrAHL : Op
-data class OpCpAR8(val r: RegEnum8) : Op
-data class OpCpAD8(val d: Int8) : Op
-class OpCpAHL : Op
-data class OpIncR8(val r: RegEnum8) : Op
-class OpIncHL : Op
-data class OpDecR8(val r: RegEnum8) : Op
-class OpDecHL : Op
-class OpDaa : Op
-class OpCpl : Op
-data class OpAddHLR16(val r: RegEnum16) : Op
-data class OpIncR16(val r: RegEnum16) : Op
-data class OpDecR16(val r: RegEnum16) : Op
-data class OpAddSpD8(val d: Int8) : Op
-data class OpLdHLSpAndD8(val d: Int8) : Op
-class OpRlcA : Op
-class OpRlA : Op
-class OpRrcA : Op
-class OpRrA : Op
-data class OpRlcR8(val r: RegEnum8) : Op
-class OpRlcHL : Op
-data class OpRlR8(val r: RegEnum8) : Op
-class OpRlHL : Op
-data class OpRrcR8(val r: RegEnum8) : Op
-class OpRrcHL : Op
-data class OpRrR8(val r: RegEnum8) : Op
-class OpRrHL : Op
-data class OpSlaR8(val r: RegEnum8) : Op
-class OpSlaHL : Op
-data class OpSwapR8(val r: RegEnum8) : Op
-class OpSwapHL : Op
-data class OpSraR8(val r: RegEnum8) : Op
-class OpSraHL : Op
-data class OpSrlR8(val r: RegEnum8) : Op
-class OpSrlHL : Op
-data class OpBitNR8(val n: Int, val r: RegEnum8) : Op
-class OpBitNHL(val n: Int) : Op
-data class OpSetNR8(val n: Int, val r: RegEnum8) : Op
-class OpSetNHL(val n: Int) : Op
-data class OpResNR8(val n: Int, val r: RegEnum8) : Op
-data class OpResNHL(val n: Int) : Op
-class OpCcf : Op
-class OpScf : Op
-class OpNop : Op
-class OpHalt : Op
-class OpStop : Op
-class OpDi : Op
-class OpEi : Op
-data class OpJpN16(val n: Int16) : Op
-class OpJpHl : Op
-data class OpJpFNn(val f: ConditionalJumpFlag, val n: Int16) : Op
-data class OpJrD8(val d: Int8) : Op
-data class OpJrFD8(val f: ConditionalJumpFlag, val d: Int8) : Op
-data class OpCallN16(val n: Int16) : Op
-data class OpCallFN16(val f: ConditionalJumpFlag, val n: Int16) : Op
-class OpRet : Op
-data class OpRetF(val f: ConditionalJumpFlag) : Op
-class OpRetI : Op
-data class OpRstN8(val n: Num) : Op {
+class OpAddAR8(val r: RegEnum8) : Op()
+class OpAddAD8(val d: Int8) : Op()
+class OpAddAHL : Op()
+class OpAdcAR8(val r: RegEnum8) : Op()
+class OpAdcAD8(val d: Int8) : Op()
+class OpAdcAHL : Op()
+class OpSubAR8(val r: RegEnum8) : Op()
+class OpSubAD8(val d: Int8) : Op()
+class OpSubAHL : Op()
+class OpSbcAR8(val r: RegEnum8) : Op()
+class OpSbcAD8(val d: Int8) : Op()
+class OpSbcAHL : Op()
+class OpAndAR8(val r: RegEnum8) : Op()
+class OpAndAD8(val d: Int8) : Op()
+class OpAndAHL : Op()
+class OpXorAR8(val r: RegEnum8) : Op()
+class OpXorAD8(val d: Int8) : Op()
+class OpXorAHL : Op()
+class OpOrAR8(val r: RegEnum8) : Op()
+class OpOrAD8(val d: Int8) : Op()
+class OpOrAHL : Op()
+class OpCpAR8(val r: RegEnum8) : Op()
+class OpCpAD8(val d: Int8) : Op()
+class OpCpAHL : Op()
+class OpIncR8(val r: RegEnum8) : Op()
+class OpIncHL : Op()
+class OpDecR8(val r: RegEnum8) : Op()
+class OpDecHL : Op()
+class OpDaa : Op()
+class OpCpl : Op()
+class OpAddHLR16(val r: RegEnum16) : Op()
+class OpIncR16(val r: RegEnum16) : Op()
+class OpDecR16(val r: RegEnum16) : Op()
+class OpAddSpD8(val d: Int8) : Op()
+class OpLdHLSpAndD8(val d: Int8) : Op()
+class OpRlcA : Op()
+class OpRlA : Op()
+class OpRrcA : Op()
+class OpRrA : Op()
+class OpRlcR8(val r: RegEnum8) : Op()
+class OpRlcHL : Op()
+class OpRlR8(val r: RegEnum8) : Op()
+class OpRlHL : Op()
+class OpRrcR8(val r: RegEnum8) : Op()
+class OpRrcHL : Op()
+class OpRrR8(val r: RegEnum8) : Op()
+class OpRrHL : Op()
+class OpSlaR8(val r: RegEnum8) : Op()
+class OpSlaHL : Op()
+class OpSwapR8(val r: RegEnum8) : Op()
+class OpSwapHL : Op()
+class OpSraR8(val r: RegEnum8) : Op()
+class OpSraHL : Op()
+class OpSrlR8(val r: RegEnum8) : Op()
+class OpSrlHL : Op()
+class OpBitNR8(val n: Int, val r: RegEnum8) : Op()
+class OpBitNHL(val n: Int) : Op()
+class OpSetNR8(val n: Int, val r: RegEnum8) : Op()
+class OpSetNHL(val n: Int) : Op()
+class OpResNR8(val n: Int, val r: RegEnum8) : Op()
+class OpResNHL(val n: Int) : Op()
+class OpCcf : Op()
+class OpScf : Op()
+class OpNop : Op()
+class OpHalt : Op()
+class OpStop : Op()
+class OpDi : Op()
+class OpEi : Op()
+class OpJpN16(val n: Int16) : Op()
+class OpJpHl : Op()
+class OpJpFNn(val f: ConditionalJumpFlag, val n: Int16) : Op()
+class OpJrD8(val d: Int8) : Op()
+class OpJrFD8(val f: ConditionalJumpFlag, val d: Int8) : Op()
+class OpCallN16(val n: Int16) : Op()
+class OpCallFN16(val f: ConditionalJumpFlag, val n: Int16) : Op()
+class OpRet : Op()
+class OpRetF(val f: ConditionalJumpFlag) : Op()
+class OpRetI : Op()
+data class OpRstN8(val n: Num) : Op() {
     enum class Num(val v: Int16) {
         N_00(0x00),
         N_08(0x08),
@@ -203,6 +205,26 @@ fun parse(memory: Memory, address: Int16): Op {
                 val idx = opcode / 16
                 val reg = listOf(RegEnum16.BC, RegEnum16.DE, RegEnum16.HL, RegEnum16.SP)[idx]
                 OpIncR16(reg)
+            }
+            in 0x09..0x39 step 16 -> {
+                val idx = opcode / 16
+                val reg = listOf(RegEnum16.BC, RegEnum16.DE, RegEnum16.HL, RegEnum16.SP)[idx]
+                OpAddHLR16(reg)
+            }
+            in 0x0A..0x3A step 16 -> {
+                val idx = opcode / 16
+                when (idx) {
+                    0 -> OpLdABC()
+                    1 -> OpLdADE()
+                    2 -> OpLdiAHL()
+                    3 -> OpLddAHL()
+                    else -> throw AssertionError()
+                }
+            }
+            in 0x0B..0x3B step 16 -> {
+                val idx = opcode / 16
+                val reg = listOf(RegEnum16.BC, RegEnum16.DE, RegEnum16.HL, RegEnum16.SP)[idx]
+                OpDecR16(reg)
             }
             else -> null
         }
@@ -276,7 +298,8 @@ fun parse(memory: Memory, address: Int16): Op {
                 OpPushR16(reg)
             }
             0xC3 -> OpJpN16(memory.get16(address+1))
-            0xCC -> OpCallN16(memory.get16(address+1))
+            0xC9 -> OpRet()
+            0xCD -> OpCallN16(memory.get16(address+1))
 
             0xC6 -> OpAddAD8(memory.get8(address+1))
             0xCE -> OpAdcAD8(memory.get8(address+1))
@@ -309,7 +332,9 @@ fun parse(memory: Memory, address: Int16): Op {
 
             else -> null
         }
-    }!!
+    } ?: run {
+        throw RuntimeException("Invalid opcode: ${opcode.toString(16)}, addr: ${address.toString(16)}")
+    }
 }
 
 private fun parsePrefixed(int8: Int8): Op {

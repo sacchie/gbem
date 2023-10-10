@@ -78,7 +78,7 @@ fun opCpA(regs: Registers, d: Int8) {
 }
 
 fun opInc(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
-    val oldVal = get();
+    val oldVal = get()
     val setVal = (oldVal + 1) % 0x100
     set(setVal)
     regs.flag().setZero(setVal == 0)
@@ -87,7 +87,7 @@ fun opInc(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
 }
 
 fun opDec(regs: Registers, get: () -> Int8, set: (d: Int8) -> Unit) {
-    val oldVal = get();
+    val oldVal = get()
     val setVal = ((oldVal - 1) + 0x100) % 0x100
     set(setVal)
     regs.flag().setZero(setVal == 0)
@@ -191,19 +191,21 @@ fun opCall(regs: Registers, memory: Memory, n: Int16) {
     regs.sp().set(regs.sp().get() - 2)
     memory.set16(regs.sp().get(), regs.pc().get() + 3)
     regs.pc().set(n)
+    regs.callDepthForDebug += 1
 }
 
 fun opRet(regs: Registers, memory: Memory) {
     val pc = memory.get16(regs.sp().get())
     regs.pc().set(pc)
     regs.sp().set(regs.sp().get() + 2)
+    regs.callDepthForDebug -= 1
 }
 
 fun runIfConditionSatisfied(regs: Registers, f: ConditionalJumpFlag, thenDo: () -> Unit, elseDo: () -> Unit) {
     if (f == ConditionalJumpFlag.NZ && !regs.flag().isZeroOn()
         || f == ConditionalJumpFlag.Z && regs.flag().isZeroOn()
         || f == ConditionalJumpFlag.NC && !regs.flag().isCarryOn()
-        || f == ConditionalJumpFlag.C && !regs.flag().isCarryOn()) {
+        || f == ConditionalJumpFlag.C && regs.flag().isCarryOn()) {
         thenDo()
     } else {
         elseDo()
@@ -337,7 +339,9 @@ fun Op.run(regs: Registers, memory: Memory) {
 
         is OpPopR16 -> {
             assert(r == RegEnum16.BC || r == RegEnum16.DE || r == RegEnum16.HL || r == RegEnum16.AF)
-            regs.gpr16(r).set(memory.get16(regs.sp().get()))
+            val popValue = memory.get16(regs.sp().get())
+            val setValue = if (r == RegEnum16.AF) popValue and 0xFFF0 else popValue
+            regs.gpr16(r).set(setValue)
             regs.sp().update { (it + 2) % 0x10000 }
             regs.pc().inc()
         }
@@ -497,7 +501,7 @@ fun Op.run(regs: Registers, memory: Memory) {
                 aOld + corr
             }
 
-            regs.flag().setSubtraction(false)
+            regs.flag().setHalfCarry(false)
             regs.flag().setZero(aNew.and(0xFF) == 0)
             regs.flag().setCarry(corr.and(0x60) != 0)
             regs.a().set(aNew.and(0xFF))
@@ -523,12 +527,14 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpIncR16 -> {
+            assert(arrayOf(RegEnum16.BC, RegEnum16.DE, RegEnum16.HL, RegEnum16.SP).contains(r))
             val reg16 = regs.gpr16(r)
             reg16.set((reg16.get() + 1) % 0x10000)
             regs.pc().inc()
         }
 
         is OpDecR16 -> {
+            assert(arrayOf(RegEnum16.BC, RegEnum16.DE, RegEnum16.HL, RegEnum16.SP).contains(r))
             val reg16 = regs.gpr16(r)
             reg16.set(((reg16.get() - 1) + 0x10000) % 0x10000)
             regs.pc().inc()
@@ -736,7 +742,8 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpDi -> {
-            memory.set8(0xFFFF, 0)
+            // TODO
+            // memory.set8(0xFFFF, 0)
             regs.pc().inc()
         }
 
@@ -762,12 +769,12 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpJrD8 -> {
-            regs.pc().set(regs.pc().get() + (d.xor(0x80) - 0x80))
+            regs.pc().set(2 + regs.pc().get() + (d.xor(0x80) - 0x80))
         }
 
         is OpJrFD8 -> {
             runIfConditionSatisfied(regs, f, {
-                regs.pc().set(regs.pc().get() + (d.xor(0x80) - 0x80))
+                regs.pc().set(2 + regs.pc().get() + (d.xor(0x80) - 0x80))
             }) {
                 regs.pc().inc(2)
             }
