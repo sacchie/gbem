@@ -205,7 +205,7 @@ fun runIfConditionSatisfied(regs: Registers, f: ConditionalJumpFlag, thenDo: () 
     if (f == ConditionalJumpFlag.NZ && !regs.flag().isZeroOn()
         || f == ConditionalJumpFlag.Z && regs.flag().isZeroOn()
         || f == ConditionalJumpFlag.NC && !regs.flag().isCarryOn()
-        || f == ConditionalJumpFlag.C && !regs.flag().isCarryOn()) {
+        || f == ConditionalJumpFlag.C && regs.flag().isCarryOn()) {
         thenDo()
     } else {
         elseDo()
@@ -276,8 +276,7 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpLdToIoPort -> {
-            // TODO
-            // memory.set8(0xFF00 + d, regs.a().get())
+            memory.set8(0xFF00 + d, regs.a().get())
             regs.pc().inc(2)
         }
 
@@ -502,7 +501,7 @@ fun Op.run(regs: Registers, memory: Memory) {
                 aOld + corr
             }
 
-            regs.flag().setSubtraction(false)
+            regs.flag().setHalfCarry(false)
             regs.flag().setZero(aNew.and(0xFF) == 0)
             regs.flag().setCarry(corr.and(0x60) != 0)
             regs.a().set(aNew.and(0xFF))
