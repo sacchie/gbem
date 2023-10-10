@@ -8,11 +8,21 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers) {
 
     repeat(maxIterations) {
         val pc = registers.pc().get()
+        /* 01-special.sを通した時のチェックポイント
         if (pc == 0xc7d2) {
             // 01-specialのforever:突入を検知するためだけのコード
             // そのうち消す必要がある
             throw RuntimeException("0xc7d2 reached")
         }
+        if (pc == 0xc1f9) {
+            // check_crc_に到達した
+            listOf(0xFF80, 0xFF81, 0xFF82, 0xFF83).forEach{
+                System.err.println("${it.toString(16)}: ${memory.get8(it).toString(16)}")
+            }
+            throw RuntimeException("check_crc_ reached")
+        }
+        */
+
         val op = parse(memory, pc)
         System.err.println("${"*".repeat(registers.callDepthForDebug)} 0x${pc.toString(16)}: $op")
         //  CPUがstateを更新
