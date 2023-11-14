@@ -194,6 +194,13 @@ fun opCall(regs: Registers, memory: Memory, n: Int16) {
     regs.callDepthForDebug += 1
 }
 
+fun opRst(regs: Registers, memory: Memory, n: OpRstN8.Num) {
+    regs.sp().set(regs.sp().get() - 2)
+    memory.set16(regs.sp().get(), regs.pc().get() + 1)
+    regs.pc().set(n.v)
+    regs.callDepthForDebug += 1
+}
+
 fun opRet(regs: Registers, memory: Memory) {
     val pc = memory.get16(regs.sp().get())
     regs.pc().set(pc)
@@ -801,11 +808,12 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpRetI -> {
-            throw UnsupportedOperationException()
+            regs.setImeOn()
+            opRet(regs, memory)
         }
 
         is OpRstN8 -> {
-            opCall(regs, memory, n.v)
+            opRst(regs, memory, n)
         }
     }
 }
