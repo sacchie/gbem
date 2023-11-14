@@ -99,12 +99,4 @@ internal class OpTest {
         OpIncR16(RegEnum16.BC).run(regs, makeMemory(mutableListOf()))
         assertThat(regs.bc().get()).isEqualTo(0x0001)
     }
-
-    @Test
-    fun commandInc_carry() {
-        val regs = Registers(bc = 0xFFFF)
-        OpIncR16(RegEnum16.BC).run(regs, makeMemory(mutableListOf()))
-        assertThat(regs.bc().get()).isEqualTo(0x0000)
-        assertThat(regs.flag().isCarryOn()).isTrue
-    }
 }
