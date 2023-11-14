@@ -142,6 +142,10 @@ data class Registers(
         }
     }
 
+    fun setImeOn() {
+        // TODO
+    }
+
     fun pc(): PC = object : PC {
         override fun get(): Int16 = pc
         override fun set(addr: Int16) { pc = addr }
