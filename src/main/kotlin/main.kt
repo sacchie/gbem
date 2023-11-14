@@ -1,8 +1,11 @@
 import cpu.*
+import ppu.Address
+import ppu.COLOR
+import ppu.Window
+import ppu.drawViewport
 
-fun loop(maxIterations: Int, memory: Memory, registers: Registers) {
+fun loop(maxIterations: Int, memory: Memory, registers: Registers, drawMainWindow: () -> Unit) {
     //  state = memory & registers
-
     registers.pc().set(0x100)
 
     repeat(maxIterations) {
@@ -28,6 +31,10 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers) {
         op.run(registers, memory)
         // System.err.println(registers)
         //  PPUがstate.memory.VRAM領域を見て画面を更新
+        if (it % 10000 == 0) {
+            drawMainWindow()
+        }
+
         //  APUがstate.memory.AUDIO領域を見て音を出す
         //  割り込みがあったらコールバックを実行
     }
@@ -43,86 +50,76 @@ fun main(args: Array<String>) {
     System.err.println("cartridgeType: 0x${cartridgeType.toString(16)}, romSize: 0x${romSize.toString(16)}")
 
     val registers = Registers()
-    loop(Int.MAX_VALUE, memory, registers)
 
-    /*
-// Create Background Debug Window
-val width = 256
-val height = 256
-val zoom = 5
-// Ref. https://gbdev.io/pandocs/Tile_Data.html
-val COLOR = mapOf(
-    LCDColor.Black to Color(0x08, 0x18, 0x20),
-    LCDColor.DarkGray to Color(0x34, 0x68, 0x56),
-    LCDColor.LightGray to Color(0x88, 0xc0, 0x70),
-    LCDColor.White to Color(0xe0, 0xf8, 0xd0),
-)
+    // Create Background Debug Window
+    val width = 256
+    val height = 256
+    val zoom = 5
 
-val mainWindow = Window(zoom * 160, zoom * 144, "gbem")
-val backgroundDebugWindow = Window(zoom * width, zoom * height, "gbem background debug")
+    val mainWindow = Window(zoom * 160, zoom * 144, "gbem")
+//    val backgroundDebugWindow = Window(zoom * width, zoom * height, "gbem background debug")
 
-val memory = MockMemoryImpl()
+    // Create Monitor Window
+//    val monitorWindow = Window(500, 500, "gbem monitor")
 
-// Create Monitor Window
-val monitorWindow = Window(500, 500, "gbem monitor")
-
-var prev = Instant.now()
-while (true) {
-    val curr = Instant.now()
-
-    // draw main window
-    mainWindow.draw { buf ->
-        drawViewport(memory) { x, y, color ->
-            buf.color = COLOR[color]
-            buf.fillRect(x * zoom, y * zoom, zoom, zoom)
+    loop(Int.MAX_VALUE, memory, registers) {
+        mainWindow.draw { buf ->
+            drawViewport(memory) { x, y, color ->
+                buf.color = COLOR[color]
+                buf.fillRect(x * zoom, y * zoom, zoom, zoom)
+            }
         }
     }
 
-    // draw background debug window
-    backgroundDebugWindow.draw { buf ->
-        drawBackgroundToScreen(memory) { x, y, color ->
-            buf.color = COLOR[color]
-            buf.fillRect(x * zoom, y * zoom, zoom, zoom)
-        }
-        val left = memory.get(ADDR_SCX)
-        val top = memory.get(ADDR_SCY)
-        val right = (left + VIEWPORT_W) % SCREEN_W
-        val bottom = (top + VIEWPORT_H) % SCREEN_H
-        buf.color = Color.RED
-        // lines from left to right
-        if (left < right) {
-            buf.fillRect(left * zoom, top * zoom, (right - left) * zoom, zoom)
-            buf.fillRect(left * zoom, bottom * zoom, (right - left) * zoom, zoom)
-        } else {
-            buf.fillRect(0, top * zoom, right * zoom, zoom)
-            buf.fillRect(left * zoom, top * zoom, (SCREEN_W - left) * zoom, zoom)
-            buf.fillRect(0, bottom * zoom, right * zoom, zoom)
-            buf.fillRect(left * zoom, bottom * zoom, (SCREEN_W - left) * zoom, zoom)
-        }
-        // lines from top to bottom
-        if (top < bottom) {
-            buf.fillRect(left * zoom, top * zoom, zoom, (bottom - top) * zoom)
-            buf.fillRect(right * zoom, top * zoom, zoom, (bottom - top) * zoom)
-        } else {
-            buf.fillRect(left * zoom, 0, zoom, bottom * zoom)
-            buf.fillRect(left * zoom, top * zoom, zoom, (SCREEN_H - top) * zoom)
-            buf.fillRect(right * zoom, 0, zoom, bottom * zoom)
-            buf.fillRect(right * zoom, top * zoom, zoom, (SCREEN_H - top) * zoom)
-        }
-    }
+//    var prev = Instant.now()
+//    while (true) {
+//        val curr = Instant.now()
 
-    // draw monitor window
-    monitorWindow.draw {
-        val delta = Duration.between(prev, curr)
-        val fps = (1000.0 / delta.toMillis()).roundToInt()
-        it.color = Color(0, 0, 0)
-        it.drawString("${fps} fps", 0, 50)
-        it.drawString("SCX=${memory.get(ADDR_SCX)}", 0, 100)
-        it.drawString("SCY=${memory.get(ADDR_SCY)}", 0, 150)
-    }
-    prev = curr
-}
-*/
+//
+//    // draw background debug window
+//    backgroundDebugWindow.draw { buf ->
+//        drawBackgroundToScreen(memory) { x, y, color ->
+//            buf.color = COLOR[color]
+//            buf.fillRect(x * zoom, y * zoom, zoom, zoom)
+//        }
+//        val left = memory.get(ADDR_SCX)
+//        val top = memory.get(ADDR_SCY)
+//        val right = (left + VIEWPORT_W) % SCREEN_W
+//        val bottom = (top + VIEWPORT_H) % SCREEN_H
+//        buf.color = Color.RED
+//        // lines from left to right
+//        if (left < right) {
+//            buf.fillRect(left * zoom, top * zoom, (right - left) * zoom, zoom)
+//            buf.fillRect(left * zoom, bottom * zoom, (right - left) * zoom, zoom)
+//        } else {
+//            buf.fillRect(0, top * zoom, right * zoom, zoom)
+//            buf.fillRect(left * zoom, top * zoom, (SCREEN_W - left) * zoom, zoom)
+//            buf.fillRect(0, bottom * zoom, right * zoom, zoom)
+//            buf.fillRect(left * zoom, bottom * zoom, (SCREEN_W - left) * zoom, zoom)
+//        }
+//        // lines from top to bottom
+//        if (top < bottom) {
+//            buf.fillRect(left * zoom, top * zoom, zoom, (bottom - top) * zoom)
+//            buf.fillRect(right * zoom, top * zoom, zoom, (bottom - top) * zoom)
+//        } else {
+//            buf.fillRect(left * zoom, 0, zoom, bottom * zoom)
+//            buf.fillRect(left * zoom, top * zoom, zoom, (SCREEN_H - top) * zoom)
+//            buf.fillRect(right * zoom, 0, zoom, bottom * zoom)
+//            buf.fillRect(right * zoom, top * zoom, zoom, (SCREEN_H - top) * zoom)
+//        }
+//    }
+
+//        // draw monitor window
+//        monitorWindow.draw {
+//            val delta = Duration.between(prev, curr)
+//            val fps = (1000.0 / delta.toMillis()).roundToInt()
+//            it.color = Color(0, 0, 0)
+//            it.drawString("${fps} fps", 0, 50)
+//            it.drawString("SCX=${memory.get(ADDR_SCX)}", 0, 100)
+//            it.drawString("SCY=${memory.get(ADDR_SCY)}", 0, 150)
+//        }
+//        prev = curr
+//    }
     println("Emulation finished")
 }
 
@@ -175,14 +172,24 @@ private val DUMMY_TILE_DATA =
 // C000-CFFF: 4 KiB Work RAM (WRAM)
 // 8000-97FF: VRAM Tile Data https://gbdev.io/pandocs/Tile_Data.html
 // 9800-9FFF: VRAM Tile Maps https://gbdev.io/pandocs/Tile_Maps.html
-class MemoryImpl(private val romByteArray: ByteArray) : Memory {
+class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
     companion object {
         val HRAM_RANGE = 0xFF80..0xFFFE
+        val OAM_RANGE = 0xFE00..0xFE9F
     }
 
     private val ram = MutableList(0x2000) { 0 }
     private val vram = MutableList(0x2000) { 0 }
     private val hram = MutableList(HRAM_RANGE.count()) { 0 }
+    private val oam = MutableList(OAM_RANGE.count()) { 0 }
+
+    private var LCDC: Int8 = 0
+    private var BGP: Int8 = 0
+    private var OBP0: Int8 = 0
+    private var OBP1: Int8 = 0
+    private var SCY: Int8 = 0
+    private var SCX: Int8 = 0
+    private var LY: Int8 = 0
 
     fun getCartridgeType() = romByteArray[0x0147].toInt() and 0xFF
 
@@ -190,12 +197,19 @@ class MemoryImpl(private val romByteArray: ByteArray) : Memory {
 
     private fun romBankEnd() = 0x7FFF
 
-    override fun get8(addr: Int16): Int8 = when (addr) {
+    override fun get8(addr: Int16): cpu.Int8 = when (addr) {
         in 0x0000..romBankEnd() -> romByteArray[addr].toInt() and 0xFF
         in 0xC000..0xDFFF -> ram[addr - 0xC000]
         in 0x8000..0x9FFF -> vram[addr - 0x8000]
         in HRAM_RANGE -> hram[addr - HRAM_RANGE.first]
-        0xFF44 -> 0 // LY TODO
+        in OAM_RANGE -> oam[addr - OAM_RANGE.first]
+        0xFF40 -> LCDC
+        0xFF42 -> SCY
+        0xFF43 -> SCX
+        0xFF44 -> LY
+        0xFF47 -> BGP
+        0xFF48 -> OBP0
+        0xFF49 -> OBP1
         else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
     }
 
@@ -221,7 +235,7 @@ class MemoryImpl(private val romByteArray: ByteArray) : Memory {
         else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
     }
 
-    override fun set8(addr: Int16, int8: Int8) {
+    override fun set8(addr: Int16, int8: cpu.Int8) {
         when (addr) {
             in 0xC000..0xDFFF -> {
                 ram[addr - 0xC000] = int8
@@ -239,10 +253,12 @@ class MemoryImpl(private val romByteArray: ByteArray) : Memory {
             0xFF26 -> {}
             0xFF25 -> {}
             0xFF24 -> {}
-            0xFF40 -> {}
-            0xFF43 -> {}
-            0xFF47 -> {}
-            0xFF42 -> {}
+            0xFF40 -> {LCDC = int8}
+            0xFF42 -> {SCY = int8}
+            0xFF43 -> {SCX = int8}
+            0xFF47 -> {BGP = int8}
+            0xFF48 -> {OBP0 = int8}
+            0xFF49 -> {OBP1 = int8}
             0xFF01 -> {}
             0xFF02 -> {}
             in HRAM_RANGE -> {
@@ -270,6 +286,10 @@ class MemoryImpl(private val romByteArray: ByteArray) : Memory {
 
             else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
         }
+    }
+
+    override fun get(addr: Address): ppu.Int8 {
+        return get8(addr)
     }
 }
 

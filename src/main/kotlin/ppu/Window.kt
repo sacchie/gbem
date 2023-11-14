@@ -1,11 +1,16 @@
 package ppu
 
-import java.awt.Canvas
-import java.awt.Dimension
-import java.awt.Graphics
-import java.awt.Image
+import java.awt.*
 import javax.swing.JFrame
 import javax.swing.WindowConstants
+
+// Ref. https://gbdev.io/pandocs/Tile_Data.html
+val COLOR = mapOf(
+    LCDColor.Black to Color(0x08, 0x18, 0x20),
+    LCDColor.DarkGray to Color(0x34, 0x68, 0x56),
+    LCDColor.LightGray to Color(0x88, 0xc0, 0x70),
+    LCDColor.White to Color(0xe0, 0xf8, 0xd0),
+)
 
 class Window(private val width: Int, private  val height:Int, title: String) {
     private val canvas: Canvas
