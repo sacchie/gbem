@@ -10,6 +10,9 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers, drawMainWindo
 
     repeat(maxIterations) {
         val pc = registers.pc().get()
+//        if (pc == 0x38) {
+//            throw RuntimeException("0x0038 reached")
+//        }
         /* 01-special.sを通した時のチェックポイント
         if (pc == 0xc7d2) {
             // 01-specialのforever:突入を検知するためだけのコード
@@ -26,7 +29,7 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers, drawMainWindo
         */
 
         val op = parse(memory, pc)
-        System.err.println("${"*".repeat(registers.callDepthForDebug)} 0x${pc.toString(16)}: $op")
+        System.err.println("${(if (registers.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(registers.callDepthForDebug) )} 0x${pc.toString(16)}: $op")
         //  CPUがstateを更新
         op.run(registers, memory)
         // System.err.println(registers)
@@ -47,14 +50,16 @@ fun main(args: Array<String>) {
 
     val cartridgeType = memory.getCartridgeType()
     val romSize = memory.getRomSize()
-    System.err.println("cartridgeType: 0x${cartridgeType.toString(16)}, romSize: 0x${romSize.toString(16)}")
+    val ramSize = memory.getRamSize()
+
+    System.err.println("cartridgeType: 0x${cartridgeType.toString(16)}, romSize: 0x${romSize.toString(16)}, ramSize: 0x${ramSize.toString(16)})")
 
     val registers = Registers()
 
     // Create Background Debug Window
     val width = 256
     val height = 256
-    val zoom = 5
+    val zoom = 3
 
     val mainWindow = Window(zoom * 160, zoom * 144, "gbem")
 //    val backgroundDebugWindow = Window(zoom * width, zoom * height, "gbem background debug")
@@ -184,16 +189,20 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
     private val oam = MutableList(OAM_RANGE.count()) { 0 }
 
     private var LCDC: Int8 = 0
+    private var STAT: Int8 = 0
     private var BGP: Int8 = 0
     private var OBP0: Int8 = 0
     private var OBP1: Int8 = 0
     private var SCY: Int8 = 0
     private var SCX: Int8 = 0
+    private var WY: Int8 = 0
+    private var WX: Int8 = 0
     private var LY: Int8 = 0
 
     fun getCartridgeType() = romByteArray[0x0147].toInt() and 0xFF
 
     fun getRomSize() = romByteArray[0x0148].toInt() and 0xFF
+    fun getRamSize() = romByteArray[0x0149].toInt() and 0xFF
 
     private fun romBankEnd() = 0x7FFF
 
@@ -204,12 +213,15 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
         in HRAM_RANGE -> hram[addr - HRAM_RANGE.first]
         in OAM_RANGE -> oam[addr - OAM_RANGE.first]
         0xFF40 -> LCDC
+        0xFF41 -> STAT
         0xFF42 -> SCY
         0xFF43 -> SCX
         0xFF44 -> LY
         0xFF47 -> BGP
         0xFF48 -> OBP0
         0xFF49 -> OBP1
+        0xFF4A -> WY
+        0xFF4B -> WX
         else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
     }
 
@@ -220,15 +232,15 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
             hi.shl(8) + lo
         }
 
-        in 0xC000..0xDFFE -> {
-            val lo = ram[addr - 0xC000 + 0]
-            val hi = ram[addr - 0xC000 + 1]
-            hi.shl(8) + lo
-        }
-
         in 0x8000..0x9FFE -> {
             val lo = vram[addr - 0x8000 + 0]
             val hi = vram[addr - 0x8000 + 1]
+            hi.shl(8) + lo
+        }
+
+        in 0xC000..0xDFFE -> {
+            val lo = ram[addr - 0xC000 + 0]
+            val hi = ram[addr - 0xC000 + 1]
             hi.shl(8) + lo
         }
 
@@ -253,12 +265,38 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
             0xFF26 -> {}
             0xFF25 -> {}
             0xFF24 -> {}
-            0xFF40 -> {LCDC = int8}
-            0xFF42 -> {SCY = int8}
-            0xFF43 -> {SCX = int8}
-            0xFF47 -> {BGP = int8}
-            0xFF48 -> {OBP0 = int8}
-            0xFF49 -> {OBP1 = int8}
+            0xFF40 -> {
+                LCDC = int8
+            }
+            0xFF41 -> {
+                STAT = int8
+            }
+            0xFF42 -> {
+                SCY = int8
+            }
+
+            0xFF43 -> {
+                SCX = int8
+            }
+
+            0xFF47 -> {
+                BGP = int8
+            }
+
+            0xFF48 -> {
+                OBP0 = int8
+            }
+
+            0xFF49 -> {
+                OBP1 = int8
+            }
+            0xFF4A -> {
+                WY = int8
+            }
+            0xFF4B -> {
+                WX = int8
+            }
+
             0xFF01 -> {}
             0xFF02 -> {}
             in HRAM_RANGE -> {
@@ -281,6 +319,12 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
             in 0x8000..0x9FFE -> {
                 vram[addr - 0x8000 + 0] = int16.lo()
                 vram[addr - 0x8000 + 1] = int16.hi()
+                System.err.println("set16: [0x${addr.toString(16)}] <- 0x${int16.toString(16)}")
+            }
+
+            in HRAM_RANGE.first..(HRAM_RANGE.last - 1) -> {
+                hram[addr - HRAM_RANGE.first + 0] = int16.lo()
+                hram[addr - HRAM_RANGE.first + 1] = int16.hi()
                 System.err.println("set16: [0x${addr.toString(16)}] <- 0x${int16.toString(16)}")
             }
 
