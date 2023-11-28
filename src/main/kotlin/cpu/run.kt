@@ -749,13 +749,12 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpDi -> {
-            // TODO
-            // memory.set8(0xFFFF, 0)
+            regs.setIme(false)
             regs.pc().inc()
         }
 
         is OpEi -> {
-            memory.set8(0xFFFF, 0xFF)
+            regs.setIme(true)
             regs.pc().inc()
         }
 
@@ -808,7 +807,7 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpRetI -> {
-            regs.setImeOn()
+            regs.setIme(true)
             opRet(regs, memory)
         }
 

@@ -9,7 +9,6 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers, drawMainWindo
     registers.pc().set(0x100)
 
     repeat(maxIterations) {
-        val pc = registers.pc().get()
 //        if (pc == 0x38) {
 //            throw RuntimeException("0x0038 reached")
 //        }
@@ -28,6 +27,9 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers, drawMainWindo
         }
         */
 
+        handleInterrupts(memory, registers)
+
+        val pc = registers.pc().get()
         val op = parse(memory, pc)
         System.err.println("${(if (registers.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(registers.callDepthForDebug) )} 0x${pc.toString(16)}: $op")
         //  CPUがstateを更新
@@ -40,6 +42,22 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers, drawMainWindo
 
         //  APUがstate.memory.AUDIO領域を見て音を出す
         //  割り込みがあったらコールバックを実行
+    }
+}
+
+fun handleInterrupts(memory: Memory, regs: Registers) {
+    fun getIE() = memory.get8(0xFFFF)
+    fun getIF() = memory.get8(0xFF0F)
+    fun setIF(v: Int8) = memory.set8(0xFF0F, v)
+
+    if (0 < getIE().and(0b100) && 0 < getIF().and(0b100)) {
+        if (regs.getIme()) {
+            setIF(getIF().and(0b11111011))
+            regs.sp().set(regs.sp().get() - 2)
+            memory.set16(regs.sp().get(), regs.pc().get())
+            regs.pc().set(0x50)
+            regs.setIme(false)
+        }
     }
 }
 
@@ -198,6 +216,8 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
     private var WY: Int8 = 0
     private var WX: Int8 = 0
     private var LY: Int8 = 0
+    private var IF: Int8 = 0
+    private var IE: Int8 = 0
 
     fun getCartridgeType() = romByteArray[0x0147].toInt() and 0xFF
 
@@ -212,6 +232,7 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
         in 0x8000..0x9FFF -> vram[addr - 0x8000]
         in HRAM_RANGE -> hram[addr - HRAM_RANGE.first]
         in OAM_RANGE -> oam[addr - OAM_RANGE.first]
+        0xFF0F -> IF
         0xFF40 -> LCDC
         0xFF41 -> STAT
         0xFF42 -> SCY
@@ -222,6 +243,7 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
         0xFF49 -> OBP1
         0xFF4A -> WY
         0xFF4B -> WX
+        0xFFFF -> IE
         else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
     }
 
@@ -259,9 +281,15 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
                 System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
             }
             // TODO: https://gbdev.io/pandocs/Hardware_Reg_List.html
+            0xFF01 -> {}
+            0xFF02 -> {}
+            0xFF05 -> {
+
+            }
             0xFF07 -> {}
-            0xFF0F -> {}
-            0xFFFF -> {}
+            0xFF0F -> {
+                IF = int8
+            }
             0xFF26 -> {}
             0xFF25 -> {}
             0xFF24 -> {}
@@ -297,13 +325,13 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
                 WX = int8
             }
 
-            0xFF01 -> {}
-            0xFF02 -> {}
             in HRAM_RANGE -> {
                 hram[addr - HRAM_RANGE.first] = int8
                 System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
             }
-
+            0xFFFF -> {
+                IE = int8
+            }
             else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
         }
     }

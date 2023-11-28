@@ -55,6 +55,7 @@ data class Registers(
     private var hl: Int16 = 0,
     private var sp: Int16 = 0,
     var callDepthForDebug: Int = 0,
+    private var ime: Boolean = false,
 ) {
     override fun toString() = objToStringHex(this)
 
@@ -142,8 +143,10 @@ data class Registers(
         }
     }
 
-    fun setImeOn() {
-        // TODO
+    fun getIme() = ime
+
+    fun setIme(on: Boolean) {
+        ime = on
     }
 
     fun pc(): PC = object : PC {
