@@ -18,6 +18,8 @@ interface Memory {
     fun set8(addr: Int16, int8: Int8)
 
     fun set16(addr: Int16, int16: Int16)
+
+    fun getIfForDebug(): Int8
 }
 
 // general-purpose register
