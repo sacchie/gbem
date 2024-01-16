@@ -219,7 +219,35 @@ fun runIfConditionSatisfied(regs: Registers, f: ConditionalJumpFlag, thenDo: () 
     }
 }
 
-fun Op.run(regs: Registers, memory: Memory) {
+interface State {
+    fun setHalted(b: Boolean)
+    fun getHalted(): Boolean
+}
+
+fun handleInterrupts(memory: Memory, regs: Registers, state: State) {
+    fun getIE() = memory.get8(0xFFFF)
+    //    fun getIF() = memory.get8(0xFF0F)
+    fun getIF() = memory.getIfForDebug() // FIXME 不要になったら消す
+    fun setIF(v: Int8) = memory.set8(0xFF0F, v)
+
+    if (0 < getIE().and(0b100) && 0 < getIF().and(0b100)) {
+        if (state.getHalted()) {
+            regs.pc().inc()
+            state.setHalted(false)
+        }
+
+        if (regs.getIme()) {
+            setIF(getIF().and(0b11111011))
+            regs.sp().set(regs.sp().get() - 2)
+            memory.set16(regs.sp().get(), regs.pc().get())
+            regs.pc().set(0x50)
+            regs.setIme(false)
+            state.setHalted(false)
+        }
+    }
+}
+
+fun Op.run(regs: Registers, memory: Memory, state: State) {
     when (this) {
         is OpLdR8R8 -> {
             val yVal = regs.gpr8(y).get()
@@ -739,8 +767,7 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpHalt -> {
-            regs.pc().inc()
-            throw UnsupportedOperationException()
+            state.setHalted(true)
         }
 
         is OpStop -> {

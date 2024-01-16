@@ -12,6 +12,13 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers, timer: Timer,
     //  state = memory & registers
     registers.pc().set(0x100)
 
+    var halted = false
+
+    val state = object : State {
+        override fun setHalted(b: Boolean) { halted = b }
+        override fun getHalted(): Boolean { return halted }
+    }
+
     repeat(maxIterations) {
 //        if (pc == 0x38) {
 //            throw RuntimeException("0x0038 reached")
@@ -31,19 +38,21 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers, timer: Timer,
         }
         */
 
-        handleInterrupts(memory, registers)
+        handleInterrupts(memory, registers, state)
 
-        val pc = registers.pc().get()
-        val op = parse(memory, pc)
-        System.err.println(
-            "${(if (registers.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(registers.callDepthForDebug))} 0x${
-                pc.toString(
-                    16
-                )
-            }: $op"
-        )
-        //  CPUがstateを更新
-        op.run(registers, memory)
+        if (!halted) {
+            val pc = registers.pc().get()
+            val op = parse(memory, pc)
+            System.err.println(
+                "${(if (registers.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(registers.callDepthForDebug))} 0x${
+                    pc.toString(
+                        16
+                    )
+                }: $op"
+            )
+            //  CPUがstateを更新
+            op.run(registers, memory, state)
+        }
 
         // Timer
         val CYCLE_COUNT = 8 // FIXME とりあえず平均値近くで設定しているだけ（2-byte instructionを想定）
@@ -58,23 +67,6 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers, timer: Timer,
 
         //  APUがstate.memory.AUDIO領域を見て音を出す
         //  割り込みがあったらコールバックを実行
-    }
-}
-
-fun handleInterrupts(memory: Memory, regs: Registers) {
-    fun getIE() = memory.get8(0xFFFF)
-//    fun getIF() = memory.get8(ADDR_IF)
-    fun getIF() = memory.getIfForDebug() // FIXME 不要になったら消す
-    fun setIF(v: Int8) = memory.set8(ADDR_IF, v)
-
-    if (0 < getIE().and(0b100) && 0 < getIF().and(0b100)) {
-        if (regs.getIme()) {
-            setIF(getIF().and(0b11111011))
-            regs.sp().set(regs.sp().get() - 2)
-            memory.set16(regs.sp().get(), regs.pc().get())
-            regs.pc().set(0x50)
-            regs.setIme(false)
-        }
     }
 }
 
