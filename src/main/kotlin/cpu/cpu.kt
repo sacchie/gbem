@@ -18,6 +18,8 @@ interface Memory {
     fun set8(addr: Int16, int8: Int8)
 
     fun set16(addr: Int16, int16: Int16)
+
+    fun getIfForDebug(): Int8
 }
 
 // general-purpose register
@@ -55,6 +57,7 @@ data class Registers(
     private var hl: Int16 = 0,
     private var sp: Int16 = 0,
     var callDepthForDebug: Int = 0,
+    private var ime: Boolean = false,
 ) {
     override fun toString() = objToStringHex(this)
 
@@ -140,6 +143,12 @@ data class Registers(
         override fun set(x: Int8) {
             hl = int16FromHiAndLo(hl.hi(), x)
         }
+    }
+
+    fun getIme() = ime
+
+    fun setIme(on: Boolean) {
+        ime = on
     }
 
     fun pc(): PC = object : PC {

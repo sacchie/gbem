@@ -194,6 +194,13 @@ fun opCall(regs: Registers, memory: Memory, n: Int16) {
     regs.callDepthForDebug += 1
 }
 
+fun opRst(regs: Registers, memory: Memory, n: OpRstN8.Num) {
+    regs.sp().set(regs.sp().get() - 2)
+    memory.set16(regs.sp().get(), regs.pc().get() + 1)
+    regs.pc().set(n.v)
+    regs.callDepthForDebug += 1
+}
+
 fun opRet(regs: Registers, memory: Memory) {
     val pc = memory.get16(regs.sp().get())
     regs.pc().set(pc)
@@ -212,7 +219,35 @@ fun runIfConditionSatisfied(regs: Registers, f: ConditionalJumpFlag, thenDo: () 
     }
 }
 
-fun Op.run(regs: Registers, memory: Memory) {
+interface State {
+    fun setHalted(b: Boolean)
+    fun getHalted(): Boolean
+}
+
+fun handleInterrupts(memory: Memory, regs: Registers, state: State) {
+    fun getIE() = memory.get8(0xFFFF)
+    //    fun getIF() = memory.get8(0xFF0F)
+    fun getIF() = memory.getIfForDebug() // FIXME 不要になったら消す
+    fun setIF(v: Int8) = memory.set8(0xFF0F, v)
+
+    if (0 < getIE().and(0b100) && 0 < getIF().and(0b100)) {
+        if (state.getHalted()) {
+            regs.pc().inc()
+            state.setHalted(false)
+        }
+
+        if (regs.getIme()) {
+            setIF(getIF().and(0b11111011))
+            regs.sp().set(regs.sp().get() - 2)
+            memory.set16(regs.sp().get(), regs.pc().get())
+            regs.pc().set(0x50)
+            regs.setIme(false)
+            state.setHalted(false)
+        }
+    }
+}
+
+fun Op.run(regs: Registers, memory: Memory, state: State) {
     when (this) {
         is OpLdR8R8 -> {
             val yVal = regs.gpr8(y).get()
@@ -732,8 +767,7 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpHalt -> {
-            regs.pc().inc()
-            throw UnsupportedOperationException()
+            state.setHalted(true)
         }
 
         is OpStop -> {
@@ -742,13 +776,12 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpDi -> {
-            // TODO
-            // memory.set8(0xFFFF, 0)
+            regs.setIme(false)
             regs.pc().inc()
         }
 
         is OpEi -> {
-            memory.set8(0xFFFF, 0xFF)
+            regs.setIme(true)
             regs.pc().inc()
         }
 
@@ -801,11 +834,12 @@ fun Op.run(regs: Registers, memory: Memory) {
         }
 
         is OpRetI -> {
-            throw UnsupportedOperationException()
+            regs.setIme(true)
+            opRet(regs, memory)
         }
 
         is OpRstN8 -> {
-            opCall(regs, memory, n.v)
+            opRst(regs, memory, n)
         }
     }
 }

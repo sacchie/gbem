@@ -299,6 +299,7 @@ fun parse(memory: Memory, address: Int16): Op {
             }
             0xC3 -> OpJpN16(memory.get16(address+1))
             0xC9 -> OpRet()
+            0xD9 -> OpRetI()
             0xCD -> OpCallN16(memory.get16(address+1))
 
             0xC6 -> OpAddAD8(memory.get8(address+1))

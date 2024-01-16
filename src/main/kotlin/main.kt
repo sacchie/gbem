@@ -4,12 +4,25 @@ import ppu.COLOR
 import ppu.Window
 import ppu.drawViewport
 
-fun loop(maxIterations: Int, memory: Memory, registers: Registers, drawMainWindow: () -> Unit) {
+const val ADDR_TIMA = 0xFF05
+const val ADDR_TMA = 0xFF06
+const val ADDR_TAC = 0xFF07
+const val ADDR_IF = 0xFF0F
+fun loop(maxIterations: Int, memory: Memory, registers: Registers, timer: Timer, drawMainWindow: () -> Unit) {
     //  state = memory & registers
     registers.pc().set(0x100)
 
+    var halted = false
+
+    val state = object : State {
+        override fun setHalted(b: Boolean) { halted = b }
+        override fun getHalted(): Boolean { return halted }
+    }
+
     repeat(maxIterations) {
-        val pc = registers.pc().get()
+//        if (pc == 0x38) {
+//            throw RuntimeException("0x0038 reached")
+//        }
         /* 01-special.sを通した時のチェックポイント
         if (pc == 0xc7d2) {
             // 01-specialのforever:突入を検知するためだけのコード
@@ -25,11 +38,28 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers, drawMainWindo
         }
         */
 
-        val op = parse(memory, pc)
-        System.err.println("${"*".repeat(registers.callDepthForDebug)} 0x${pc.toString(16)}: $op")
-        //  CPUがstateを更新
-        op.run(registers, memory)
-        // System.err.println(registers)
+        handleInterrupts(memory, registers, state)
+
+        if (!halted) {
+            val pc = registers.pc().get()
+            val op = parse(memory, pc)
+            System.err.println(
+                "${(if (registers.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(registers.callDepthForDebug))} 0x${
+                    pc.toString(
+                        16
+                    )
+                }: $op"
+            )
+            //  CPUがstateを更新
+            op.run(registers, memory, state)
+        }
+
+        // Timer
+        val CYCLE_COUNT = 8 // FIXME とりあえず平均値近くで設定しているだけ（2-byte instructionを想定）
+        if (timer.tick(CYCLE_COUNT)) {
+            memory.set8(ADDR_IF, memory.get8(ADDR_IF) or 0b100)
+        }
+
         //  PPUがstate.memory.VRAM領域を見て画面を更新
         if (it % 10000 == 0) {
             drawMainWindow()
@@ -40,21 +70,79 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers, drawMainWindo
     }
 }
 
+data class Timer(
+    private var divCounter: Int8 = 0,
+    private var timaCounter: Int8 = 0,
+    private var tima: Int8 = 0,
+    var tma: Int8 = 0,
+    var tac: Int8 = 0
+) {
+    // TODO
+    // FF04に何かwriteしたらDIVは0x00にする
+    // STOP Opでもresetされ、STOP mode解除されるまでtickが起こらなくなる
+    fun tick(cycleCount: Int): Boolean {
+        divCounter += cycleCount
+        divCounter %= 64 * 256
+
+        if (tac and 0b100 == 0) {
+            return false
+        }
+
+        timaCounter += cycleCount
+        val divider = when (tac.and(0b11)) {
+            0b00 -> 1024
+            0b01 -> 16
+            0b10 -> 64
+            0b11 -> 256
+            else -> throw RuntimeException("invalid tac")
+        }
+        if (timaCounter >= divider) {
+            timaCounter -= divider
+            tima++
+            if (tima > 0xFF) {
+                tima = tma
+                return true
+            }
+        }
+        return false
+    }
+
+    fun getDiv() = (divCounter / 64) % 256
+    fun getTima() = tima
+    fun setTima(v: Int8) {
+        tima = v
+    }
+}
+
 fun main(args: Array<String>) {
     // load file
     val romByteArray = object {}.javaClass.getResourceAsStream("rom.gb")!!.readAllBytes()
-    val memory = MemoryImpl(romByteArray)
+    val timer = Timer()
+    val memory = object : MemoryImpl(romByteArray) {
+        override fun setTima(value: Int8) = timer.setTima(value)
+        override fun setTac(value: Int8) {
+            timer.tac = value
+        }
+    }
 
     val cartridgeType = memory.getCartridgeType()
     val romSize = memory.getRomSize()
-    System.err.println("cartridgeType: 0x${cartridgeType.toString(16)}, romSize: 0x${romSize.toString(16)}")
+    val ramSize = memory.getRamSize()
+
+    System.err.println(
+        "cartridgeType: 0x${cartridgeType.toString(16)}, romSize: 0x${romSize.toString(16)}, ramSize: 0x${
+            ramSize.toString(
+                16
+            )
+        })"
+    )
 
     val registers = Registers()
 
     // Create Background Debug Window
     val width = 256
     val height = 256
-    val zoom = 5
+    val zoom = 3
 
     val mainWindow = Window(zoom * 160, zoom * 144, "gbem")
 //    val backgroundDebugWindow = Window(zoom * width, zoom * height, "gbem background debug")
@@ -62,7 +150,7 @@ fun main(args: Array<String>) {
     // Create Monitor Window
 //    val monitorWindow = Window(500, 500, "gbem monitor")
 
-    loop(Int.MAX_VALUE, memory, registers) {
+    loop(Int.MAX_VALUE, memory, registers, timer) {
         mainWindow.draw { buf ->
             drawViewport(memory) { x, y, color ->
                 buf.color = COLOR[color]
@@ -172,7 +260,7 @@ private val DUMMY_TILE_DATA =
 // C000-CFFF: 4 KiB Work RAM (WRAM)
 // 8000-97FF: VRAM Tile Data https://gbdev.io/pandocs/Tile_Data.html
 // 9800-9FFF: VRAM Tile Maps https://gbdev.io/pandocs/Tile_Maps.html
-class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
+abstract class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
     companion object {
         val HRAM_RANGE = 0xFF80..0xFFFE
         val OAM_RANGE = 0xFE00..0xFE9F
@@ -184,16 +272,22 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
     private val oam = MutableList(OAM_RANGE.count()) { 0 }
 
     private var LCDC: Int8 = 0
+    private var STAT: Int8 = 0
     private var BGP: Int8 = 0
     private var OBP0: Int8 = 0
     private var OBP1: Int8 = 0
     private var SCY: Int8 = 0
     private var SCX: Int8 = 0
+    private var WY: Int8 = 0
+    private var WX: Int8 = 0
     private var LY: Int8 = 0
+    private var IF: Int8 = 0
+    private var IE: Int8 = 0
 
     fun getCartridgeType() = romByteArray[0x0147].toInt() and 0xFF
 
     fun getRomSize() = romByteArray[0x0148].toInt() and 0xFF
+    fun getRamSize() = romByteArray[0x0149].toInt() and 0xFF
 
     private fun romBankEnd() = 0x7FFF
 
@@ -203,13 +297,20 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
         in 0x8000..0x9FFF -> vram[addr - 0x8000]
         in HRAM_RANGE -> hram[addr - HRAM_RANGE.first]
         in OAM_RANGE -> oam[addr - OAM_RANGE.first]
+        ADDR_IF -> {
+            IF
+        }
         0xFF40 -> LCDC
+        0xFF41 -> STAT
         0xFF42 -> SCY
         0xFF43 -> SCX
         0xFF44 -> LY
         0xFF47 -> BGP
         0xFF48 -> OBP0
         0xFF49 -> OBP1
+        0xFF4A -> WY
+        0xFF4B -> WX
+        0xFFFF -> IE
         else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
     }
 
@@ -220,15 +321,15 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
             hi.shl(8) + lo
         }
 
-        in 0xC000..0xDFFE -> {
-            val lo = ram[addr - 0xC000 + 0]
-            val hi = ram[addr - 0xC000 + 1]
-            hi.shl(8) + lo
-        }
-
         in 0x8000..0x9FFE -> {
             val lo = vram[addr - 0x8000 + 0]
             val hi = vram[addr - 0x8000 + 1]
+            hi.shl(8) + lo
+        }
+
+        in 0xC000..0xDFFE -> {
+            val lo = ram[addr - 0xC000 + 0]
+            val hi = ram[addr - 0xC000 + 1]
             hi.shl(8) + lo
         }
 
@@ -247,23 +348,60 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
                 System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
             }
             // TODO: https://gbdev.io/pandocs/Hardware_Reg_List.html
-            0xFF07 -> {}
-            0xFF0F -> {}
-            0xFFFF -> {}
+            0xFF01 -> {}
+            0xFF02 -> {}
+            0xFF05 -> setTima(int8)
+            0xFF07 -> setTac(int8)
+            ADDR_IF -> {
+                IF = int8
+            }
+
             0xFF26 -> {}
             0xFF25 -> {}
             0xFF24 -> {}
-            0xFF40 -> {LCDC = int8}
-            0xFF42 -> {SCY = int8}
-            0xFF43 -> {SCX = int8}
-            0xFF47 -> {BGP = int8}
-            0xFF48 -> {OBP0 = int8}
-            0xFF49 -> {OBP1 = int8}
-            0xFF01 -> {}
-            0xFF02 -> {}
+            0xFF40 -> {
+                LCDC = int8
+            }
+
+            0xFF41 -> {
+                STAT = int8
+            }
+
+            0xFF42 -> {
+                SCY = int8
+            }
+
+            0xFF43 -> {
+                SCX = int8
+            }
+
+            0xFF47 -> {
+                BGP = int8
+            }
+
+            0xFF48 -> {
+                OBP0 = int8
+            }
+
+            0xFF49 -> {
+                OBP1 = int8
+            }
+
+            0xFF4A -> {
+                WY = int8
+            }
+
+            0xFF4B -> {
+                WX = int8
+            }
+
             in HRAM_RANGE -> {
                 hram[addr - HRAM_RANGE.first] = int8
                 System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
+            }
+
+            0xFFFF -> {
+                IE = int8
             }
 
             else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
@@ -284,12 +422,25 @@ class MemoryImpl(private val romByteArray: ByteArray) : cpu.Memory, ppu.Memory {
                 System.err.println("set16: [0x${addr.toString(16)}] <- 0x${int16.toString(16)}")
             }
 
+            in HRAM_RANGE.first..(HRAM_RANGE.last - 1) -> {
+                hram[addr - HRAM_RANGE.first + 0] = int16.lo()
+                hram[addr - HRAM_RANGE.first + 1] = int16.hi()
+                System.err.println("set16: [0x${addr.toString(16)}] <- 0x${int16.toString(16)}")
+            }
+
             else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
         }
     }
 
     override fun get(addr: Address): ppu.Int8 {
         return get8(addr)
+    }
+
+    abstract fun setTima(value: Int8)
+    abstract fun setTac(value: Int8)
+
+    override fun getIfForDebug(): Int8 {
+        return IF
     }
 }
 
