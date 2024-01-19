@@ -14,18 +14,6 @@ interface Memory {
     fun getIfForDebug(): Int8
 }
 
-// flag register
-interface Flag {
-    fun isZeroOn(): Boolean
-    fun setZero(on: Boolean)
-    fun isSubtractionOn(): Boolean
-    fun setSubtraction(on: Boolean)
-    fun isHalfCarryOn(): Boolean
-    fun setHalfCarry(on: Boolean)
-    fun isCarryOn(): Boolean
-    fun setCarry(on: Boolean)
-}
-
 interface Registers {
     fun getAf(): Int16
     fun setAf(x: Int16)
@@ -44,11 +32,23 @@ interface Registers {
     fun getIme(): Boolean
     fun setIme(on: Boolean)
 
-    fun flag(): Flag
+
+    // flag register
+    fun isZeroOn(): Boolean
+    fun setZero(on: Boolean)
+    fun isSubtractionOn(): Boolean
+    fun setSubtraction(on: Boolean)
+    fun isHalfCarryOn(): Boolean
+    fun setHalfCarry(on: Boolean)
+    fun isCarryOn(): Boolean
+    fun setCarry(on: Boolean)
+
 
     fun incCallDepthForDebug(diff: Int = 1)
 }
 
+fun Registers.updateHl(fn: (x: Int16) -> Int16) = setHl(fn(getHl()))
+fun Registers.updateSp(fn: (x: Int16) -> Int16) = setSp(fn(getSp()))
 fun Registers.incPc(diff: Int16 = 1) = setPc(diff + getPc())
 fun Registers.getA() = getAf().hi()
 fun Registers.setA(x: Int8) = setAf(int16FromHiAndLo(x, getAf().lo()))
@@ -69,91 +69,64 @@ interface Place<T> {
     fun get(): T
     fun set(x: T)
 
-    fun update(fn: (x: T) -> T) {
-        set(fn(get()))
-    }
 }
-
-fun Registers.af() = object : Place<Int16> {
-    override fun get(): Int16 = getAf()
-    override fun set(x: Int16) = setAf(x)
-}
-
-fun Registers.bc() = object : Place<Int16> {
-    override fun get(): Int16 = getBc()
-    override fun set(x: Int16) = setBc(x)
-}
-
-fun Registers.de() = object : Place<Int16> {
-    override fun get(): Int16 = getDe()
-    override fun set(x: Int16) = setDe(x)
-}
-
-fun Registers.hl() = object : Place<Int16> {
-    override fun get(): Int16 = getHl()
-    override fun set(x: Int16) = setHl(x)
-
-}
-
-fun Registers.sp() = object : Place<Int16> {
-    override fun get(): Int16 = getSp()
-    override fun set(x: Int16) = setSp(x)
-}
-
 
 fun Registers.a() = object : Place<Int8> {
     override fun get(): Int8 = getA()
     override fun set(x: Int8) = setA(x)
 }
 
-fun Registers.b() = object : Place<Int8> {
-    override fun get(): Int8 = getB()
-    override fun set(x: Int8) = setB(x)
-}
-
-fun Registers.c() = object : Place<Int8> {
-    override fun get(): Int8 = getC()
-    override fun set(x: Int8) = setC(x)
-
-}
-
-fun Registers.d() = object : Place<Int8> {
-    override fun get(): Int8 = getD()
-    override fun set(x: Int8) = setD(x)
-
-}
-
-fun Registers.e() = object : Place<Int8> {
-    override fun get(): Int8 = getE()
-    override fun set(x: Int8) = setE(x)
-}
-
-fun Registers.h() = object : Place<Int8> {
-    override fun get(): Int8 = getH()
-    override fun set(x: Int8) = setH(x)
-}
-
-fun Registers.l() = object : Place<Int8> {
-    override fun get(): Int8 = getL()
-    override fun set(x: Int8) = setL(x)
-}
-
 fun Registers.r8(r: RegEnum8) = when (r) {
-    RegEnum8.B -> b()
-    RegEnum8.C -> c()
-    RegEnum8.D -> d()
-    RegEnum8.E -> e()
-    RegEnum8.H -> h()
-    RegEnum8.L -> l()
+    RegEnum8.B -> object : Place<Int8> {
+        override fun get(): Int8 = getB()
+        override fun set(x: Int8) = setB(x)
+    }
+    RegEnum8.C -> object : Place<Int8> {
+        override fun get(): Int8 = getC()
+        override fun set(x: Int8) = setC(x)
+    }
+    RegEnum8.D -> object : Place<Int8> {
+        override fun get(): Int8 = getD()
+        override fun set(x: Int8) = setD(x)
+
+    }
+    RegEnum8.E -> object : Place<Int8> {
+        override fun get(): Int8 = getE()
+        override fun set(x: Int8) = setE(x)
+    }
+    RegEnum8.H -> object : Place<Int8> {
+        override fun get(): Int8 = getH()
+        override fun set(x: Int8) = setH(x)
+    }
+    RegEnum8.L -> object : Place<Int8> {
+        override fun get(): Int8 = getL()
+        override fun set(x: Int8) = setL(x)
+    }
     RegEnum8.A -> a()
 }
 
 fun Registers.r16(r: RegEnum16) = when (r) {
-    RegEnum16.AF -> af()
-    RegEnum16.BC -> bc()
-    RegEnum16.DE -> de()
-    RegEnum16.HL -> hl()
-    RegEnum16.SP -> sp()
+    RegEnum16.AF -> object : Place<Int16> {
+        override fun get(): Int16 = getAf()
+        override fun set(x: Int16) = setAf(x)
+    }
+    RegEnum16.BC -> object : Place<Int16> {
+        override fun get(): Int16 = getBc()
+        override fun set(x: Int16) = setBc(x)
+    }
+    RegEnum16.DE -> object : Place<Int16> {
+        override fun get(): Int16 = getDe()
+        override fun set(x: Int16) = setDe(x)
+    }
+    RegEnum16.HL -> object : Place<Int16> {
+        override fun get(): Int16 = getHl()
+        override fun set(x: Int16) = setHl(x)
+
+    }
+    RegEnum16.SP -> object : Place<Int16> {
+        override fun get(): Int16 = getSp()
+        override fun set(x: Int16) = setSp(x)
+    }
 }
 
 fun Memory.asPlace8(addr: Int16) = object : Place<Int8> {
@@ -162,80 +135,80 @@ fun Memory.asPlace8(addr: Int16) = object : Place<Int8> {
 }
 
 fun opAddA(regs: Registers, d: Int8, cy: Int8 = 0) {
-    val aOld = regs.a().get()
+    val aOld = regs.getA()
     val aNew = aOld + d + cy
     val aSet = aNew % 0x100
-    regs.a().set(aSet)
-    regs.flag().setZero(aSet == 0)
-    regs.flag().setSubtraction(false)
-    regs.flag().setCarry(0x100 <= aNew)
-    regs.flag().setHalfCarry(aOld.and(0xF) + d.and(0xF) + cy > 0xF)
+    regs.setA(aSet)
+    regs.setZero(aSet == 0)
+    regs.setSubtraction(false)
+    regs.setCarry(0x100 <= aNew)
+    regs.setHalfCarry(aOld.and(0xF) + d.and(0xF) + cy > 0xF)
 }
 
 fun opSubA(regs: Registers, d: Int8, cy: Int8 = 0) {
-    val aOld = regs.a().get()
+    val aOld = regs.getA()
     val aNew = aOld - d - cy
     val aSet = (aNew + 0x100) % 0x100
-    regs.a().set(aSet)
-    regs.flag().setZero(aSet == 0)
-    regs.flag().setSubtraction(true)
-    regs.flag().setCarry(aNew < 0)
-    regs.flag().setHalfCarry(aOld.and(0xF) - d.and(0xF) - cy < 0)
+    regs.setA(aSet)
+    regs.setZero(aSet == 0)
+    regs.setSubtraction(true)
+    regs.setCarry(aNew < 0)
+    regs.setHalfCarry(aOld.and(0xF) - d.and(0xF) - cy < 0)
 }
 
 fun opAndA(regs: Registers, d: Int8) {
-    val aSet = regs.a().get().and(d)
-    regs.a().set(aSet)
-    regs.flag().setZero(aSet == 0)
-    regs.flag().setSubtraction(false)
-    regs.flag().setCarry(false)
-    regs.flag().setHalfCarry(true);
+    val aSet = regs.getA().and(d)
+    regs.setA(aSet)
+    regs.setZero(aSet == 0)
+    regs.setSubtraction(false)
+    regs.setCarry(false)
+    regs.setHalfCarry(true);
 }
 
 fun opXorA(regs: Registers, d: Int8) {
-    val aSet = regs.a().get().xor(d)
-    regs.a().set(aSet)
-    regs.flag().setZero(aSet == 0)
-    regs.flag().setSubtraction(false)
-    regs.flag().setCarry(false)
-    regs.flag().setHalfCarry(false);
+    val aSet = regs.getA().xor(d)
+    regs.setA(aSet)
+    regs.setZero(aSet == 0)
+    regs.setSubtraction(false)
+    regs.setCarry(false)
+    regs.setHalfCarry(false);
 }
 
 fun opOrA(regs: Registers, d: Int8) {
-    val aSet = regs.a().get().or(d)
-    regs.a().set(aSet)
-    regs.flag().setZero(aSet == 0)
-    regs.flag().setSubtraction(false)
-    regs.flag().setCarry(false)
-    regs.flag().setHalfCarry(false);
+    val aSet = regs.getA().or(d)
+    regs.setA(aSet)
+    regs.setZero(aSet == 0)
+    regs.setSubtraction(false)
+    regs.setCarry(false)
+    regs.setHalfCarry(false);
 }
 
 fun opCpA(regs: Registers, d: Int8) {
-    val aOld = regs.a().get()
+    val aOld = regs.getA()
     val aNew = aOld - d
     val aResult = (aNew + 0x100) % 0x100
-    regs.flag().setZero(aResult == 0)
-    regs.flag().setSubtraction(true)
-    regs.flag().setCarry(aNew < 0)
-    regs.flag().setHalfCarry(aOld.and(0xF) - d.and(0xF) < 0)
+    regs.setZero(aResult == 0)
+    regs.setSubtraction(true)
+    regs.setCarry(aNew < 0)
+    regs.setHalfCarry(aOld.and(0xF) - d.and(0xF) < 0)
 }
 
 fun opInc(regs: Registers, place: Place<Int8>) {
     val oldVal = place.get()
     val setVal = (oldVal + 1) % 0x100
     place.set(setVal)
-    regs.flag().setZero(setVal == 0)
-    regs.flag().setSubtraction(false)
-    regs.flag().setHalfCarry(oldVal.and(0xF) + 1.and(0xF) > 0xF)
+    regs.setZero(setVal == 0)
+    regs.setSubtraction(false)
+    regs.setHalfCarry(oldVal.and(0xF) + 1.and(0xF) > 0xF)
 }
 
 fun opDec(regs: Registers, place: Place<Int8>) {
     val oldVal = place.get()
     val setVal = ((oldVal - 1) + 0x100) % 0x100
     place.set(setVal)
-    regs.flag().setZero(setVal == 0)
-    regs.flag().setSubtraction(true)
-    regs.flag().setHalfCarry(oldVal.and(0xF) - 1.and(0xF) < 0)
+    regs.setZero(setVal == 0)
+    regs.setSubtraction(true)
+    regs.setHalfCarry(oldVal.and(0xF) - 1.and(0xF) < 0)
 }
 
 fun opRlc(regs: Registers, place: Place<Int8>, forceZeroOff: Boolean) {
@@ -243,21 +216,21 @@ fun opRlc(regs: Registers, place: Place<Int8>, forceZeroOff: Boolean) {
     val aNew = aOld.shl(1) + aOld.shr(7)
     val aSet = aNew % 0x100
     place.set(aSet)
-    regs.flag().setZero(if (forceZeroOff) false else aSet == 0)
-    regs.flag().setSubtraction(false)
-    regs.flag().setHalfCarry(false)
-    regs.flag().setCarry(0xFF < aNew)
+    regs.setZero(if (forceZeroOff) false else aSet == 0)
+    regs.setSubtraction(false)
+    regs.setHalfCarry(false)
+    regs.setCarry(0xFF < aNew)
 }
 
 fun opRl(regs: Registers, place: Place<Int8>, forceZeroOff: Boolean) {
     val vOld = place.get()
-    val vNew = vOld.shl(1) + if (regs.flag().isCarryOn()) 1 else 0
+    val vNew = vOld.shl(1) + if (regs.isCarryOn()) 1 else 0
     val vSet = vNew % 0x100
     place.set(vSet)
-    regs.flag().setZero(if (forceZeroOff) false else vSet == 0)
-    regs.flag().setSubtraction(false)
-    regs.flag().setHalfCarry(false)
-    regs.flag().setCarry(0xFF < vNew)
+    regs.setZero(if (forceZeroOff) false else vSet == 0)
+    regs.setSubtraction(false)
+    regs.setHalfCarry(false)
+    regs.setCarry(0xFF < vNew)
 }
 
 fun opRrc(regs: Registers, place: Place<Int8>, forceZeroOff: Boolean) {
@@ -265,21 +238,21 @@ fun opRrc(regs: Registers, place: Place<Int8>, forceZeroOff: Boolean) {
     val vNew = vOld.shr(1) + vOld.shl(7).and(0xFF)
     val vSet = vNew % 0x100
     place.set(vSet)
-    regs.flag().setZero(if (forceZeroOff) false else vSet == 0)
-    regs.flag().setSubtraction(false)
-    regs.flag().setHalfCarry(false)
-    regs.flag().setCarry(vOld.and(1) == 1)
+    regs.setZero(if (forceZeroOff) false else vSet == 0)
+    regs.setSubtraction(false)
+    regs.setHalfCarry(false)
+    regs.setCarry(vOld.and(1) == 1)
 }
 
 fun opRr(regs: Registers, place: Place<Int8>, forceZeroOff: Boolean) {
     val vOld = place.get()
-    val vNew = vOld.shr(1) + (if (regs.flag().isCarryOn()) 1 else 0).shl(7)
+    val vNew = vOld.shr(1) + (if (regs.isCarryOn()) 1 else 0).shl(7)
     val vSet = vNew % 0x100
     place.set(vSet)
-    regs.flag().setZero(if (forceZeroOff) false else vSet == 0)
-    regs.flag().setSubtraction(false)
-    regs.flag().setHalfCarry(false)
-    regs.flag().setCarry(vOld.and(1) == 1)
+    regs.setZero(if (forceZeroOff) false else vSet == 0)
+    regs.setSubtraction(false)
+    regs.setHalfCarry(false)
+    regs.setCarry(vOld.and(1) == 1)
 }
 
 fun opSwap(regs: Registers, place: Place<Int8>) {
@@ -288,38 +261,38 @@ fun opSwap(regs: Registers, place: Place<Int8>) {
     val vOldLow = vOld.and(0xF)
     val vSet = vOldLow.shl(4).or(vOldHigh)
     place.set(vSet)
-    regs.flag().setZero(vSet == 0)
-    regs.flag().setSubtraction(false)
-    regs.flag().setHalfCarry(false)
-    regs.flag().setCarry(false)
+    regs.setZero(vSet == 0)
+    regs.setSubtraction(false)
+    regs.setHalfCarry(false)
+    regs.setCarry(false)
 }
 
 fun opSra(regs: Registers, place: Place<Int8>) {
     val vOld = place.get()
     val vSet = vOld.shr(1) + vOld.and(0b10000000)
     place.set(vSet)
-    regs.flag().setZero(vSet == 0)
-    regs.flag().setSubtraction(false)
-    regs.flag().setHalfCarry(false)
-    regs.flag().setCarry(vOld.and(1) == 1)
+    regs.setZero(vSet == 0)
+    regs.setSubtraction(false)
+    regs.setHalfCarry(false)
+    regs.setCarry(vOld.and(1) == 1)
 }
 
 fun opSrl(regs: Registers, place: Place<Int8>) {
     val vOld = place.get()
     val vSet = vOld.shr(1)
     place.set(vSet)
-    regs.flag().setZero(vSet == 0)
-    regs.flag().setSubtraction(false)
-    regs.flag().setHalfCarry(false)
-    regs.flag().setCarry(vOld.and(1) == 1)
+    regs.setZero(vSet == 0)
+    regs.setSubtraction(false)
+    regs.setHalfCarry(false)
+    regs.setCarry(vOld.and(1) == 1)
 }
 
 fun opBitN(n: Int, regs: Registers, get: () -> Int8) {
     val vOld = get()
     val vNew = vOld.and(1.shl(n))
-    regs.flag().setZero((vNew % 0x100) == 0)
-    regs.flag().setSubtraction(false)
-    regs.flag().setHalfCarry(true)
+    regs.setZero((vNew % 0x100) == 0)
+    regs.setSubtraction(false)
+    regs.setHalfCarry(true)
 }
 
 fun opSetN(n: Int, place: Place<Int8>) {
@@ -331,31 +304,31 @@ fun opResN(n: Int, place: Place<Int8>) {
 }
 
 fun opCall(regs: Registers, memory: Memory, n: Int16) {
-    regs.sp().set(regs.sp().get() - 2)
-    memory.set16(regs.sp().get(), regs.getPc() + 3)
+    regs.setSp(regs.getSp() - 2)
+    memory.set16(regs.getSp(), regs.getPc() + 3)
     regs.setPc(n)
     regs.incCallDepthForDebug()
 }
 
 fun opRst(regs: Registers, memory: Memory, n: OpRstN8.Num) {
-    regs.sp().set(regs.sp().get() - 2)
-    memory.set16(regs.sp().get(), regs.getPc() + 1)
+    regs.setSp(regs.getSp() - 2)
+    memory.set16(regs.getSp(), regs.getPc() + 1)
     regs.setPc(n.v)
     regs.incCallDepthForDebug()
 }
 
 fun opRet(regs: Registers, memory: Memory) {
-    val pc = memory.get16(regs.sp().get())
+    val pc = memory.get16(regs.getSp())
     regs.setPc(pc)
-    regs.sp().set(regs.sp().get() + 2)
+    regs.setSp(regs.getSp() + 2)
     regs.incCallDepthForDebug(-1)
 }
 
 fun runIfConditionSatisfied(regs: Registers, f: ConditionalJumpFlag, thenDo: () -> Unit, elseDo: () -> Unit) {
-    if (f == ConditionalJumpFlag.NZ && !regs.flag().isZeroOn()
-        || f == ConditionalJumpFlag.Z && regs.flag().isZeroOn()
-        || f == ConditionalJumpFlag.NC && !regs.flag().isCarryOn()
-        || f == ConditionalJumpFlag.C && regs.flag().isCarryOn()
+    if (f == ConditionalJumpFlag.NZ && !regs.isZeroOn()
+        || f == ConditionalJumpFlag.Z && regs.isZeroOn()
+        || f == ConditionalJumpFlag.NC && !regs.isCarryOn()
+        || f == ConditionalJumpFlag.C && regs.isCarryOn()
     ) {
         thenDo()
     } else {
@@ -383,8 +356,8 @@ fun handleInterrupts(memory: Memory, regs: Registers, state: State) {
 
         if (regs.getIme()) {
             setIF(getIF().and(0b11111011))
-            regs.sp().set(regs.sp().get() - 2)
-            memory.set16(regs.sp().get(), regs.getPc())
+            regs.setSp(regs.getSp() - 2)
+            memory.set16(regs.getSp(), regs.getPc())
             regs.setPc(0x50)
             regs.setIme(false)
             state.setHalted(false)
@@ -406,91 +379,91 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpLdR8HL -> {
-            regs.r8(r).set(memory.get8(regs.hl().get()))
+            regs.r8(r).set(memory.get8(regs.getHl()))
             regs.incPc()
         }
 
         is OpLdHLR8 -> {
-            memory.set8(regs.hl().get(), regs.r8(r).get())
+            memory.set8(regs.getHl(), regs.r8(r).get())
             regs.incPc()
         }
 
         is OpLdHLD8 -> {
-            memory.set8(regs.hl().get(), d)
+            memory.set8(regs.getHl(), d)
             regs.incPc(2)
         }
 
         is OpLdABC -> {
-            regs.a().set(memory.get8(regs.bc().get()))
+            regs.setA(memory.get8(regs.getBc()))
             regs.incPc()
         }
 
         is OpLdADE -> {
-            regs.a().set(memory.get8(regs.de().get()))
+            regs.setA(memory.get8(regs.getDe()))
             regs.incPc()
         }
 
         is OpLdAD16 -> {
-            regs.a().set(memory.get8(d))
+            regs.setA(memory.get8(d))
             regs.incPc(3)
         }
 
         is OpLdBCA -> {
-            memory.set8(regs.bc().get(), regs.a().get())
+            memory.set8(regs.getBc(), regs.getA())
             regs.incPc()
         }
 
         is OpLdDEA -> {
-            memory.set8(regs.de().get(), regs.a().get())
+            memory.set8(regs.getDe(), regs.getA())
             regs.incPc()
         }
 
         is OpLdD16A -> {
-            memory.set8(d, regs.a().get())
+            memory.set8(d, regs.getA())
             regs.incPc(3)
         }
 
         is OpLdFromIoPort -> {
-            regs.a().set(memory.get8(0xFF00 + d))
+            regs.setA(memory.get8(0xFF00 + d))
             regs.incPc(2)
         }
 
         is OpLdToIoPort -> {
-            memory.set8(0xFF00 + d, regs.a().get())
+            memory.set8(0xFF00 + d, regs.getA())
             regs.incPc(2)
         }
 
         is OpLdFromIoPortC -> {
-            regs.a().set(memory.get8(0xFF00 + regs.c().get()))
+            regs.setA(memory.get8(0xFF00 + regs.getC()))
             regs.incPc()
         }
 
         is OpLdToIoPortC -> {
-            memory.set8(0xFF00 + regs.c().get(), regs.a().get())
+            memory.set8(0xFF00 + regs.getC(), regs.getA())
             regs.incPc()
         }
 
         is OpLdiHLA -> {
-            memory.set8(regs.hl().get(), regs.a().get())
-            regs.hl().update { (it + 1) % 0x10000 }
+            memory.set8(regs.getHl(), regs.getA())
+            regs.updateHl { (it + 1) % 0x10000 }
             regs.incPc()
         }
 
         is OpLdiAHL -> {
-            regs.a().set(memory.get8(regs.hl().get()))
-            regs.hl().update { (it + 1) % 0x10000 }
+            regs.setA(memory.get8(regs.getHl()))
+            regs.updateHl { (it + 1) % 0x10000 }
             regs.incPc()
         }
 
         is OpLddHLA -> {
-            memory.set8(regs.hl().get(), regs.a().get())
-            regs.hl().update { if (it == 0) 0xFFFF else it - 1 }
+            memory.set8(regs.getHl(), regs.getA())
+            regs.updateHl { if (it == 0) 0xFFFF else it - 1 }
             regs.incPc()
         }
 
         is OpLddAHL -> {
-            regs.a().set(memory.get8(regs.hl().get()))
-            regs.hl().update { if (it == 0) 0xFFFF else it - 1 }
+            regs.setA(memory.get8(regs.getHl()))
+            regs.updateHl { if (it == 0) 0xFFFF else it - 1 }
             regs.incPc()
         }
 
@@ -501,28 +474,28 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpLdD16SP -> {
-            memory.set16(d, regs.sp().get())
+            memory.set16(d, regs.getSp())
             regs.incPc(3)
         }
 
         is OpLdSPHL -> {
-            regs.sp().set(regs.hl().get())
+            regs.setSp(regs.getHl())
             regs.incPc()
         }
 
         is OpPushR16 -> {
             assert(r == RegEnum16.BC || r == RegEnum16.DE || r == RegEnum16.HL || r == RegEnum16.AF)
-            regs.sp().update { if (it < 2) it + 0x10000 - 2 else it - 2 }
-            memory.set16(regs.sp().get(), regs.r16(r).get())
+            regs.updateSp { if (it < 2) it + 0x10000 - 2 else it - 2 }
+            memory.set16(regs.getSp(), regs.r16(r).get())
             regs.incPc()
         }
 
         is OpPopR16 -> {
             assert(r == RegEnum16.BC || r == RegEnum16.DE || r == RegEnum16.HL || r == RegEnum16.AF)
-            val popValue = memory.get16(regs.sp().get())
+            val popValue = memory.get16(regs.getSp())
             val setValue = if (r == RegEnum16.AF) popValue and 0xFFF0 else popValue
             regs.r16(r).set(setValue)
-            regs.sp().update { (it + 2) % 0x10000 }
+            regs.updateSp { (it + 2) % 0x10000 }
             regs.incPc()
         }
 
@@ -537,22 +510,22 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpAddAHL -> {
-            opAddA(regs, memory.get8(regs.hl().get()))
+            opAddA(regs, memory.get8(regs.getHl()))
             regs.incPc()
         }
 
         is OpAdcAR8 -> {
-            opAddA(regs, regs.r8(r).get(), if (regs.flag().isCarryOn()) 1 else 0)
+            opAddA(regs, regs.r8(r).get(), if (regs.isCarryOn()) 1 else 0)
             regs.incPc()
         }
 
         is OpAdcAD8 -> {
-            opAddA(regs, d, if (regs.flag().isCarryOn()) 1 else 0)
+            opAddA(regs, d, if (regs.isCarryOn()) 1 else 0)
             regs.incPc(2)
         }
 
         is OpAdcAHL -> {
-            opAddA(regs, memory.get8(regs.hl().get()), if (regs.flag().isCarryOn()) 1 else 0)
+            opAddA(regs, memory.get8(regs.getHl()), if (regs.isCarryOn()) 1 else 0)
             regs.incPc()
         }
 
@@ -567,22 +540,22 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpSubAHL -> {
-            opSubA(regs, memory.get8(regs.hl().get()))
+            opSubA(regs, memory.get8(regs.getHl()))
             regs.incPc()
         }
 
         is OpSbcAR8 -> {
-            opSubA(regs, regs.r8(r).get(), if (regs.flag().isCarryOn()) 1 else 0)
+            opSubA(regs, regs.r8(r).get(), if (regs.isCarryOn()) 1 else 0)
             regs.incPc()
         }
 
         is OpSbcAD8 -> {
-            opSubA(regs, d, if (regs.flag().isCarryOn()) 1 else 0)
+            opSubA(regs, d, if (regs.isCarryOn()) 1 else 0)
             regs.incPc(2)
         }
 
         is OpSbcAHL -> {
-            opSubA(regs, memory.get8(regs.hl().get()), if (regs.flag().isCarryOn()) 1 else 0)
+            opSubA(regs, memory.get8(regs.getHl()), if (regs.isCarryOn()) 1 else 0)
             regs.incPc()
         }
 
@@ -597,7 +570,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpAndAHL -> {
-            opAndA(regs, memory.get8(regs.hl().get()))
+            opAndA(regs, memory.get8(regs.getHl()))
             regs.incPc()
         }
 
@@ -612,7 +585,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpXorAHL -> {
-            opXorA(regs, memory.get8(regs.hl().get()))
+            opXorA(regs, memory.get8(regs.getHl()))
             regs.incPc()
         }
 
@@ -627,7 +600,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpOrAHL -> {
-            opOrA(regs, memory.get8(regs.hl().get()))
+            opOrA(regs, memory.get8(regs.getHl()))
             regs.incPc()
         }
 
@@ -642,7 +615,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpCpAHL -> {
-            opCpA(regs, memory.get8(regs.hl().get()))
+            opCpA(regs, memory.get8(regs.getHl()))
             regs.incPc()
         }
 
@@ -652,7 +625,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpIncHL -> {
-            opInc(regs, memory.asPlace8(regs.hl().get()))
+            opInc(regs, memory.asPlace8(regs.getHl()))
             regs.incPc()
         }
 
@@ -662,17 +635,17 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpDecHL -> {
-            opDec(regs, memory.asPlace8(regs.hl().get()))
+            opDec(regs, memory.asPlace8(regs.getHl()))
             regs.incPc()
         }
 
         is OpDaa -> {
             var corr = 0
-                .or(if (regs.flag().isHalfCarryOn()) 0x06 else 0x00)
-                .or(if (regs.flag().isCarryOn()) 0x60 else 0x00)
+                .or(if (regs.isHalfCarryOn()) 0x06 else 0x00)
+                .or(if (regs.isCarryOn()) 0x60 else 0x00)
 
-            val aOld = regs.a().get()
-            val aNew = if (regs.flag().isSubtractionOn()) {
+            val aOld = regs.getA()
+            val aNew = if (regs.isSubtractionOn()) {
                 aOld - corr
             } else {
                 corr = corr
@@ -681,28 +654,28 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
                 aOld + corr
             }
 
-            regs.flag().setHalfCarry(false)
-            regs.flag().setZero(aNew.and(0xFF) == 0)
-            regs.flag().setCarry(corr.and(0x60) != 0)
-            regs.a().set(aNew.and(0xFF))
+            regs.setHalfCarry(false)
+            regs.setZero(aNew.and(0xFF) == 0)
+            regs.setCarry(corr.and(0x60) != 0)
+            regs.setA(aNew.and(0xFF))
             regs.incPc()
         }
 
         is OpCpl -> {
-            regs.a().set(regs.a().get().xor(0xFF).and(0xFF))
-            regs.flag().setSubtraction(true)
-            regs.flag().setHalfCarry(true)
+            regs.setA(regs.getA().xor(0xFF).and(0xFF))
+            regs.setSubtraction(true)
+            regs.setHalfCarry(true)
             regs.incPc()
         }
 
         is OpAddHLR16 -> {
-            val hlOld = regs.hl().get()
+            val hlOld = regs.getHl()
             val hlNew = hlOld + regs.r16(r).get()
             val hlSet = hlNew % 0x10000
-            regs.hl().set(hlSet)
-            regs.flag().setSubtraction(false)
-            regs.flag().setCarry(0x10000 <= hlNew)
-            regs.flag().setHalfCarry(0xFFF < hlOld.and(0xFFF) + regs.r16(r).get().and(0xFFF))
+            regs.setHl(hlSet)
+            regs.setSubtraction(false)
+            regs.setCarry(0x10000 <= hlNew)
+            regs.setHalfCarry(0xFFF < hlOld.and(0xFFF) + regs.r16(r).get().and(0xFFF))
             regs.incPc()
         }
 
@@ -721,26 +694,26 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpAddSpD8 -> {
-            val spOld = regs.sp().get()
+            val spOld = regs.getSp()
             val spNew = if (d < 0x80) spOld + d else spOld - (0x100 - d)
             val spSet = (spNew + 0x10000) % 0x10000
-            regs.sp().set(spSet)
-            regs.flag().setZero(false)
-            regs.flag().setSubtraction(false)
-            regs.flag().setHalfCarry(0xF < (spOld.and(0xF) + d.and(0xF)))
-            regs.flag().setCarry(0xFF < (spOld.and(0xFF) + d.and(0xFF)))
+            regs.setSp(spSet)
+            regs.setZero(false)
+            regs.setSubtraction(false)
+            regs.setHalfCarry(0xF < (spOld.and(0xF) + d.and(0xF)))
+            regs.setCarry(0xFF < (spOld.and(0xFF) + d.and(0xFF)))
             regs.incPc(2)
         }
 
         is OpLdHLSpAndD8 -> {
-            val spVal = regs.sp().get()
+            val spVal = regs.getSp()
             val hlNew = if (d < 0x80) spVal + d else spVal - (0x100 - d)
             val hlSet = (hlNew + 0x10000) % 0x10000
-            regs.hl().set(hlSet)
-            regs.flag().setZero(false)
-            regs.flag().setSubtraction(false)
-            regs.flag().setHalfCarry(0xF < (spVal.and(0xF) + d.and(0xF)))
-            regs.flag().setCarry(0xFF < (spVal.and(0xFF) + d.and(0xFF)))
+            regs.setHl(hlSet)
+            regs.setZero(false)
+            regs.setSubtraction(false)
+            regs.setHalfCarry(0xF < (spVal.and(0xF) + d.and(0xF)))
+            regs.setCarry(0xFF < (spVal.and(0xFF) + d.and(0xFF)))
             regs.incPc(2)
         }
 
@@ -770,7 +743,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpRlcHL -> {
-            val addr = regs.hl().get()
+            val addr = regs.getHl()
             opRlc(regs, memory.asPlace8(addr), false)
             regs.incPc(2)
         }
@@ -781,7 +754,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpRlHL -> {
-            val addr = regs.hl().get()
+            val addr = regs.getHl()
             opRl(regs, memory.asPlace8(addr), false)
             regs.incPc(2)
         }
@@ -792,7 +765,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpRrcHL -> {
-            val addr = regs.hl().get()
+            val addr = regs.getHl()
             opRrc(regs, memory.asPlace8(addr), false)
             regs.incPc(2)
         }
@@ -803,7 +776,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpRrHL -> {
-            val addr = regs.hl().get()
+            val addr = regs.getHl()
             opRr(regs, memory.asPlace8(addr), false)
             regs.incPc(2)
         }
@@ -814,22 +787,22 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
             val vNew = vOld.shl(1)
             val vSet = vNew % 0x100
             reg.set(vSet)
-            regs.flag().setZero(vSet == 0)
-            regs.flag().setSubtraction(false)
-            regs.flag().setHalfCarry(false)
-            regs.flag().setCarry(0xFF < vNew)
+            regs.setZero(vSet == 0)
+            regs.setSubtraction(false)
+            regs.setHalfCarry(false)
+            regs.setCarry(0xFF < vNew)
             regs.incPc(2)
         }
 
         is OpSlaHL -> {
-            val vOld = memory.get8(regs.hl().get())
+            val vOld = memory.get8(regs.getHl())
             val vNew = vOld.shl(1)
             val vSet = vNew % 0x100
-            memory.set8(regs.hl().get(), vSet)
-            regs.flag().setZero(vSet == 0)
-            regs.flag().setSubtraction(false)
-            regs.flag().setHalfCarry(false)
-            regs.flag().setCarry(0xFF < vNew)
+            memory.set8(regs.getHl(), vSet)
+            regs.setZero(vSet == 0)
+            regs.setSubtraction(false)
+            regs.setHalfCarry(false)
+            regs.setCarry(0xFF < vNew)
             regs.incPc(2)
         }
 
@@ -839,7 +812,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpSwapHL -> {
-            opSwap(regs, memory.asPlace8(regs.hl().get()))
+            opSwap(regs, memory.asPlace8(regs.getHl()))
             regs.incPc(2)
         }
 
@@ -849,7 +822,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpSraHL -> {
-            opSra(regs, memory.asPlace8(regs.hl().get()))
+            opSra(regs, memory.asPlace8(regs.getHl()))
             regs.incPc(2)
         }
 
@@ -859,7 +832,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpSrlHL -> {
-            opSrl(regs, memory.asPlace8(regs.hl().get()))
+            opSrl(regs, memory.asPlace8(regs.getHl()))
             regs.incPc(2)
         }
 
@@ -869,7 +842,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpBitNHL -> {
-            opBitN(n, regs, { memory.get8(regs.hl().get()) })
+            opBitN(n, regs, { memory.get8(regs.getHl()) })
             regs.incPc(2)
         }
 
@@ -879,7 +852,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpSetNHL -> {
-            opSetN(n, memory.asPlace8(regs.hl().get()))
+            opSetN(n, memory.asPlace8(regs.getHl()))
             regs.incPc(2)
         }
 
@@ -889,21 +862,21 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpResNHL -> {
-            opResN(n, memory.asPlace8(regs.hl().get()))
+            opResN(n, memory.asPlace8(regs.getHl()))
             regs.incPc(2)
         }
 
         is OpCcf -> {
-            regs.flag().setCarry(!regs.flag().isCarryOn())
-            regs.flag().setHalfCarry(false)
-            regs.flag().setSubtraction(false)
+            regs.setCarry(!regs.isCarryOn())
+            regs.setHalfCarry(false)
+            regs.setSubtraction(false)
             regs.incPc()
         }
 
         is OpScf -> {
-            regs.flag().setCarry(true)
-            regs.flag().setHalfCarry(false)
-            regs.flag().setSubtraction(false)
+            regs.setCarry(true)
+            regs.setHalfCarry(false)
+            regs.setSubtraction(false)
             regs.incPc()
         }
 
@@ -935,7 +908,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpJpHl -> {
-            regs.setPc(regs.hl().get())
+            regs.setPc(regs.getHl())
         }
 
         is OpJpFNn -> {
