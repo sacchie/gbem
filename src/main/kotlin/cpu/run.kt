@@ -32,7 +32,6 @@ interface Registers {
     fun getIme(): Boolean
     fun setIme(on: Boolean)
 
-
     // flag register
     fun isZeroOn(): Boolean
     fun setZero(on: Boolean)
@@ -43,32 +42,31 @@ interface Registers {
     fun isCarryOn(): Boolean
     fun setCarry(on: Boolean)
 
+    fun getA() = getAf().hi()
+    fun setA(x: Int8) = setAf(int16FromHiAndLo(x, getAf().lo()))
+    fun getB() = getBc().hi()
+    fun setB(x: Int8) = setBc(int16FromHiAndLo(x, getBc().lo()))
+    fun getC() = getBc().lo()
+    fun setC(x: Int8) = setBc(int16FromHiAndLo(getBc().hi(), x))
+    fun getD() = getDe().hi()
+    fun setD(x: Int8) = setDe(int16FromHiAndLo(x, getDe().lo()))
+    fun getE() = getDe().lo()
+    fun setE(x: Int8) = setDe(int16FromHiAndLo(getDe().hi(), x))
+    fun getH() = getHl().hi()
+    fun setH(x: Int8) = setHl(int16FromHiAndLo(x, getHl().lo()))
+    fun getL() = getHl().lo()
+    fun setL(x: Int8) = setHl(int16FromHiAndLo(getHl().hi(), x))
 
     fun incCallDepthForDebug(diff: Int = 1)
 }
 
 fun Registers.updateHl(fn: (x: Int16) -> Int16) = setHl(fn(getHl()))
 fun Registers.updateSp(fn: (x: Int16) -> Int16) = setSp(fn(getSp()))
-fun Registers.incPc(diff: Int16 = 1) = setPc(diff + getPc())
-fun Registers.getA() = getAf().hi()
-fun Registers.setA(x: Int8) = setAf(int16FromHiAndLo(x, getAf().lo()))
-fun Registers.getB() = getBc().hi()
-fun Registers.setB(x: Int8) = setBc(int16FromHiAndLo(x, getBc().lo()))
-fun Registers.getC() = getBc().lo()
-fun Registers.setC(x: Int8) = setBc(int16FromHiAndLo(getBc().hi(), x))
-fun Registers.getD() = getDe().hi()
-fun Registers.setD(x: Int8) = setDe(int16FromHiAndLo(x, getDe().lo()))
-fun Registers.getE() = getDe().lo()
-fun Registers.setE(x: Int8) = setDe(int16FromHiAndLo(getDe().hi(), x))
-fun Registers.getH() = getHl().hi()
-fun Registers.setH(x: Int8) = setHl(int16FromHiAndLo(x, getHl().lo()))
-fun Registers.getL() = getHl().lo()
-fun Registers.setL(x: Int8) = setHl(int16FromHiAndLo(getHl().hi(), x))
+fun Registers.incPc(diff: Int16 = 1) = setPc(diff + getPc() % 0x10000)
 
 interface Place<T> {
     fun get(): T
     fun set(x: T)
-
 }
 
 fun Registers.a() = object : Place<Int8> {
