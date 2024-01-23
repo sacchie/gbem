@@ -8,9 +8,11 @@ const val ADDR_TIMA = 0xFF05
 const val ADDR_TMA = 0xFF06
 const val ADDR_TAC = 0xFF07
 const val ADDR_IF = 0xFF0F
-fun loop(maxIterations: Int, memory: Memory, registers: Registers, timer: Timer, drawMainWindow: () -> Unit) {
+fun loop(maxIterations: Int, memory: Memory, timer: Timer, drawMainWindow: () -> Unit) {
+    val registers = InMemoryRegisters()
+
     //  state = memory & registers
-    registers.pc().set(0x100)
+    registers.setPc(0x100)
 
     var halted = false
 
@@ -41,8 +43,8 @@ fun loop(maxIterations: Int, memory: Memory, registers: Registers, timer: Timer,
         handleInterrupts(memory, registers, state)
 
         if (!halted) {
-            val pc = registers.pc().get()
-            val op = parse(memory, pc)
+            val pc = registers.getPc()
+            val op = cpu.op.parse(memory, pc)
             System.err.println(
                 "${(if (registers.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(registers.callDepthForDebug))} 0x${
                     pc.toString(
@@ -116,7 +118,7 @@ data class Timer(
 
 fun main(args: Array<String>) {
     // load file
-    val romByteArray = object {}.javaClass.getResourceAsStream("rom.gb")!!.readAllBytes()
+    val romByteArray = object {}.javaClass.getResourceAsStream("rom11.gb")!!.readAllBytes()
     val timer = Timer()
     val memory = object : MemoryImpl(romByteArray) {
         override fun setTima(value: Int8) = timer.setTima(value)
@@ -137,8 +139,6 @@ fun main(args: Array<String>) {
         })"
     )
 
-    val registers = Registers()
-
     // Create Background Debug Window
     val width = 256
     val height = 256
@@ -150,7 +150,7 @@ fun main(args: Array<String>) {
     // Create Monitor Window
 //    val monitorWindow = Window(500, 500, "gbem monitor")
 
-    loop(Int.MAX_VALUE, memory, registers, timer) {
+    loop(Int.MAX_VALUE, memory, timer) {
         mainWindow.draw { buf ->
             drawViewport(memory) { x, y, color ->
                 buf.color = COLOR[color]
