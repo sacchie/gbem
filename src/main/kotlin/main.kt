@@ -1,7 +1,9 @@
-import cpu.*
+
+import cpu.handleInterrupts
+import cpu.run
 import ppu.COLOR
 import ppu.Window
-import ppu.drawViewport
+import ppu.drawScanlineInViewport
 
 const val ADDR_TIMA = 0xFF05
 const val ADDR_TMA = 0xFF06
@@ -58,8 +60,11 @@ fun loop(maxIterations: Int, state: State, drawMainWindow: () -> Unit) {
         }
 
         //  PPUがstate.memory.VRAM領域を見て画面を更新
-        if (it % 10000 == 0) {
+        if (it % 200 == 0) {
             drawMainWindow()
+            if (++(state.memory.LY) == 154) {
+                state.memory.LY = 0
+            }
         }
 
         //  APUがstate.memory.AUDIO領域を見て音を出す
@@ -99,7 +104,7 @@ fun main(args: Array<String>) {
 
     loop(Int.MAX_VALUE, state) {
         mainWindow.draw { buf ->
-            drawViewport(memory) { x, y, color ->
+            drawScanlineInViewport(memory, memory.getLY()) { x, y, color ->
                 buf.color = COLOR[color]
                 buf.fillRect(x * zoom, y * zoom, zoom, zoom)
             }
