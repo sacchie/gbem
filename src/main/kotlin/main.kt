@@ -1,4 +1,3 @@
-
 import cpu.handleInterrupts
 import cpu.run
 import ppu.COLOR
@@ -9,7 +8,6 @@ const val ADDR_TIMA = 0xFF05
 const val ADDR_TMA = 0xFF06
 const val ADDR_TAC = 0xFF07
 const val ADDR_IF = 0xFF0F
-
 
 fun loop(maxIterations: Int, state: State, drawMainWindow: () -> Unit) {
     state.register.pc = 0x100
@@ -96,7 +94,9 @@ fun main(args: Array<String>) {
     val height = 256
     val zoom = 3
 
-    val mainWindow = Window(zoom * 160, zoom * 144, "gbem")
+    val mainWindow = Window(zoom * 160, zoom * 144, "gbem", {
+        state.setDPad(if (it) 0b0111  else  0b1111 )
+    })
 //    val backgroundDebugWindow = Window(zoom * width, zoom * height, "gbem background debug")
 
     // Create Monitor Window

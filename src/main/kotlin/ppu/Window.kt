@@ -1,6 +1,8 @@
 package ppu
 
 import java.awt.*
+import java.awt.event.KeyAdapter
+import java.awt.event.KeyEvent
 import javax.swing.JFrame
 import javax.swing.WindowConstants
 
@@ -12,7 +14,7 @@ val COLOR = mapOf(
     LCDColor.White to Color(0xe0, 0xf8, 0xd0),
 )
 
-class Window(private val width: Int, private  val height:Int, title: String) {
+class Window(private val width: Int, private  val height:Int, title: String, onKey: (pressed: Boolean) -> Unit) {
     private val canvas: Canvas
     private val graphics: Graphics
     private val image: Image
@@ -25,6 +27,16 @@ class Window(private val width: Int, private  val height:Int, title: String) {
         canvas = Canvas()
         canvas.setPreferredSize(Dimension(width, height))
 
+        canvas.addKeyListener(object : KeyAdapter() {
+            override fun keyPressed(e: KeyEvent?) {
+                onKey(true)
+            }
+
+            override fun keyReleased(e: KeyEvent?) {
+                onKey(false)
+            }
+        })
+
         frame.contentPane.add(canvas)
         frame.pack()
         frame.setLocationRelativeTo(null)
@@ -36,7 +48,7 @@ class Window(private val width: Int, private  val height:Int, title: String) {
     }
 
     fun draw(f: (buf: Graphics)-> Unit) {
-//        imageBuffer.clearRect(0, 0, width, height)
+        // imageBuffer.clearRect(0, 0, width, height)
         f(imageBuffer)
         graphics.drawImage(image, 0, 0, canvas)
     }

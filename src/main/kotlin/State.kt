@@ -1,6 +1,8 @@
 import cpu.*
 import ppu.Address
 import ppu.Int8
+import java.util.*
+import kotlin.random.Random
 
 data class RegisterData(
     var pc: Int16 = 0,
@@ -19,6 +21,7 @@ data class MemoryData(
     val hram: MutableList<Int8> = MutableList(HRAM_RANGE.count()) { 0 },
     val oam: MutableList<Int8> = MutableList(OAM_RANGE.count()) { 0 },
 
+    var P1_JOYP: Int8 = 0,
     var LCDC: Int8 = 0,
     var STAT: Int8 = 0,
     var BGP: Int8 = 0,
@@ -97,6 +100,7 @@ class State(
     val memory: MemoryData = MemoryData(),
     val timer: TimerData = TimerData(),
     var halted: Boolean = false,
+    private var dPad: Int8 = 0,
 ) {
     fun registers() = object : Registers {
         override fun toString() = objToStringHex(this)
@@ -173,7 +177,16 @@ class State(
             in 0x8000..0x9FFF -> memory.vram[addr - 0x8000]
             in MemoryData.HRAM_RANGE -> memory.hram[addr - MemoryData.HRAM_RANGE.first]
             in MemoryData.OAM_RANGE -> memory.oam[addr - MemoryData.OAM_RANGE.first]
-            0xFF00 -> 0 // TODO returns JoyPad state
+            0xFF00 -> {
+                if (memory.P1_JOYP.and(0xF0) == 0x20) {
+                    0x20 + dPad
+                } else if (memory.P1_JOYP.and(0xF0) == 0x10) {
+                    0x10 + 0xF
+                } else {
+                    0x0F
+                }
+            }
+
             ADDR_IF -> memory.IF
             0xFF40 -> memory.LCDC
             0xFF41 -> memory.STAT
@@ -223,7 +236,7 @@ class State(
                     System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
                 }
                 // TODO: https://gbdev.io/pandocs/Hardware_Reg_List.html
-                0xFF00 -> { /* TODO switch JoyPad */ }
+                0xFF00 -> memory.P1_JOYP = int8
                 0xFF01 -> {}
                 0xFF02 -> {}
                 0xFF05 -> setTima(int8)
@@ -243,6 +256,7 @@ class State(
                         memory.oam[i] = get8(startAddr + i)
                     }
                 }
+
                 0xFF47 -> memory.BGP = int8
                 0xFF48 -> memory.OBP0 = int8
                 0xFF49 -> memory.OBP1 = int8
@@ -335,5 +349,9 @@ class State(
         override fun getHalted(): Boolean {
             return halted
         }
+    }
+
+    fun setDPad(x: Int8) {
+        dPad = x
     }
 }
