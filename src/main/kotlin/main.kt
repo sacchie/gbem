@@ -7,26 +7,27 @@ import ppu.drawScanlineInViewport
 
 const val ADDR_IF = 0xFF0F
 
-fun loop(maxIterations: Int, state: State, drawMainWindow: () -> Unit) {
+fun loop(shouldContinue: (count: Long) -> Boolean, state: State, drawMainWindow: () -> Unit) {
     state.register.pc = 0x100
 
     val registers = state.registers()
     val memory = state.memory()
     val timer = state.timer()
 
-    repeat(maxIterations) {
+    var count = 0L
+    while (shouldContinue(count++)) {
         handleInterrupts(memory, registers, state.state())
 
         if (!state.halted) {
             val pc = registers.getPc()
             val op = cpu.op.parse(memory, pc)
-            System.err.println(
-                "${(if (state.register.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(state.register.callDepthForDebug))} 0x${
-                    pc.toString(
-                        16
-                    )
-                }: $op"
-            )
+//            System.err.println(
+//                "${(if (state.register.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(state.register.callDepthForDebug))} 0x${
+//                    pc.toString(
+//                        16
+//                    )
+//                }: $op"
+//            )
             //  CPUがstateを更新
             op.run(registers, memory, state.state())
         }
@@ -38,7 +39,7 @@ fun loop(maxIterations: Int, state: State, drawMainWindow: () -> Unit) {
         }
 
         //  PPUがstate.memory.VRAM領域を見て画面を更新
-        if (it % 200 == 0) {
+        if (count % 200L == 0L) {
             drawMainWindow()
             if (++(state.memory.LY) == 154) {
                 state.memory.LY = 0
@@ -80,7 +81,7 @@ fun main(args: Array<String>) {
         override fun onRight(pressed: Boolean) = state.setDPad(0, pressed)
     })
 
-    loop(Int.MAX_VALUE, state) {
+    loop({it < Int.MAX_VALUE}, state) {
         mainWindow.draw { buf ->
             drawScanlineInViewport(memory, memory.getLY()) { x, y, color ->
                 buf.color = COLOR[color]
