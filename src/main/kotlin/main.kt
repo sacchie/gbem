@@ -1,6 +1,7 @@
 import cpu.handleInterrupts
 import cpu.run
 import ppu.COLOR
+import ppu.Handlers
 import ppu.Window
 import ppu.drawScanlineInViewport
 
@@ -94,8 +95,15 @@ fun main(args: Array<String>) {
     val height = 256
     val zoom = 3
 
-    val mainWindow = Window(zoom * 160, zoom * 144, "gbem", {
-        state.setDPad(if (it) 0b0111  else  0b1111 )
+    val mainWindow = Window(zoom * 160, zoom * 144, "gbem", object : Handlers {
+        override fun onA(pressed: Boolean) = state.setButtons(0, pressed)
+        override fun onB(pressed: Boolean) = state.setButtons(1, pressed)
+        override fun onStart(pressed: Boolean) = state.setButtons(3, pressed)
+        override fun onSelect(pressed: Boolean) = state.setButtons(2, pressed)
+        override fun onUp(pressed: Boolean) = state.setDPad(2, pressed)
+        override fun onDown(pressed: Boolean) = state.setDPad(3, pressed)
+        override fun onLeft(pressed: Boolean) = state.setDPad(1, pressed)
+        override fun onRight(pressed: Boolean) = state.setDPad(0, pressed)
     })
 //    val backgroundDebugWindow = Window(zoom * width, zoom * height, "gbem background debug")
 

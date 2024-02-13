@@ -1,8 +1,7 @@
+
 import cpu.*
 import ppu.Address
 import ppu.Int8
-import java.util.*
-import kotlin.random.Random
 
 data class RegisterData(
     var pc: Int16 = 0,
@@ -21,7 +20,6 @@ data class MemoryData(
     val hram: MutableList<Int8> = MutableList(HRAM_RANGE.count()) { 0 },
     val oam: MutableList<Int8> = MutableList(OAM_RANGE.count()) { 0 },
 
-    var P1_JOYP: Int8 = 0,
     var LCDC: Int8 = 0,
     var STAT: Int8 = 0,
     var BGP: Int8 = 0,
@@ -94,13 +92,20 @@ data class TimerData(
     var tac: Int8 = 0,
 )
 
+data class P1(
+    var dPad: Int8 = 0b1111,
+    var buttons: Int8 = 0b1111,
+    var selectDPad: Boolean = false,
+    var selectButtons: Boolean = false,
+)
+
 class State(
     private val romByteArray: ByteArray,
     val register: RegisterData = RegisterData(),
     val memory: MemoryData = MemoryData(),
     val timer: TimerData = TimerData(),
     var halted: Boolean = false,
-    private var dPad: Int8 = 0,
+    private val p1: P1 = P1(),
 ) {
     fun registers() = object : Registers {
         override fun toString() = objToStringHex(this)
@@ -178,12 +183,14 @@ class State(
             in MemoryData.HRAM_RANGE -> memory.hram[addr - MemoryData.HRAM_RANGE.first]
             in MemoryData.OAM_RANGE -> memory.oam[addr - MemoryData.OAM_RANGE.first]
             0xFF00 -> {
-                if (memory.P1_JOYP.and(0xF0) == 0x20) {
-                    0x20 + dPad
-                } else if (memory.P1_JOYP.and(0xF0) == 0x10) {
-                    0x10 + 0xF
-                } else {
+                if (p1.selectButtons && !p1.selectDPad) {
+                    0x20 + p1.buttons
+                } else if (p1.selectDPad && !p1.selectButtons) {
+                    0x10 + p1.dPad
+                } else if (!p1.selectDPad && !p1.selectButtons){
                     0x0F
+                } else {
+                    throw RuntimeException("Invalid P1 select")
                 }
             }
 
@@ -236,7 +243,10 @@ class State(
                     System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
                 }
                 // TODO: https://gbdev.io/pandocs/Hardware_Reg_List.html
-                0xFF00 -> memory.P1_JOYP = int8
+                0xFF00 -> {
+                    p1.selectDPad = int8 and 0b10000 == 0
+                    p1.selectButtons = int8 and 0b100000 == 0
+                }
                 0xFF01 -> {}
                 0xFF02 -> {}
                 0xFF05 -> setTima(int8)
@@ -351,7 +361,19 @@ class State(
         }
     }
 
-    fun setDPad(x: Int8) {
-        dPad = x
+    fun setDPad(bit: Int, pressed: Boolean) {
+        p1.dPad = if (pressed) {
+            p1.dPad and (0b0001).shl(bit).inv()
+        } else {
+            p1.dPad or (0b0001).shl(bit)
+        }
+    }
+
+    fun setButtons(bit: Int, pressed: Boolean) {
+        p1.buttons = if (pressed) {
+            p1.buttons and (0b0001).shl(bit).inv()
+        } else {
+            p1.buttons or (0b0001).shl(bit)
+        }
     }
 }
