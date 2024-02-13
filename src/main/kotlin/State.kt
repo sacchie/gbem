@@ -235,12 +235,12 @@ class State(
             when (addr) {
                 in 0xC000..0xDFFF -> {
                     memory.ram[addr - 0xC000] = int8
-                    System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
+//                    System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
                 }
 
                 in 0x8000..0x9FFF -> {
                     memory.vram[addr - 0x8000] = int8
-                    System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
+//                    System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
                 }
                 // TODO: https://gbdev.io/pandocs/Hardware_Reg_List.html
                 0xFF00 -> {
@@ -275,7 +275,7 @@ class State(
 
                 in MemoryData.HRAM_RANGE -> {
                     memory.hram[addr - MemoryData.HRAM_RANGE.first] = int8
-                    System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
+//                    System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
                 }
 
                 0xFFFF -> {
@@ -291,19 +291,19 @@ class State(
                 in 0xC000..0xDFFE -> {
                     memory.ram[addr - 0xC000 + 0] = int16.lo()
                     memory.ram[addr - 0xC000 + 1] = int16.hi()
-                    System.err.println("set16: [0x${addr.toString(16)}] <- 0x${int16.toString(16)}")
+//                    System.err.println("set16: [0x${addr.toString(16)}] <- 0x${int16.toString(16)}")
                 }
 
                 in 0x8000..0x9FFE -> {
                     memory.vram[addr - 0x8000 + 0] = int16.lo()
                     memory.vram[addr - 0x8000 + 1] = int16.hi()
-                    System.err.println("set16: [0x${addr.toString(16)}] <- 0x${int16.toString(16)}")
+//                    System.err.println("set16: [0x${addr.toString(16)}] <- 0x${int16.toString(16)}")
                 }
 
                 in MemoryData.HRAM_RANGE.first..(MemoryData.HRAM_RANGE.last - 1) -> {
                     memory.hram[addr - MemoryData.HRAM_RANGE.first + 0] = int16.lo()
                     memory.hram[addr - MemoryData.HRAM_RANGE.first + 1] = int16.hi()
-                    System.err.println("set16: [0x${addr.toString(16)}] <- 0x${int16.toString(16)}")
+//                    System.err.println("set16: [0x${addr.toString(16)}] <- 0x${int16.toString(16)}")
                 }
 
                 else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
