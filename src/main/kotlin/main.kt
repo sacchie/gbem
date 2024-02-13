@@ -1,13 +1,14 @@
-import cpu.*
+import cpu.handleInterrupts
+import cpu.run
 import ppu.COLOR
+import ppu.Handlers
 import ppu.Window
-import ppu.drawViewport
+import ppu.drawScanlineInViewport
 
 const val ADDR_TIMA = 0xFF05
 const val ADDR_TMA = 0xFF06
 const val ADDR_TAC = 0xFF07
 const val ADDR_IF = 0xFF0F
-
 
 fun loop(maxIterations: Int, state: State, drawMainWindow: () -> Unit) {
     state.register.pc = 0x100
@@ -58,8 +59,11 @@ fun loop(maxIterations: Int, state: State, drawMainWindow: () -> Unit) {
         }
 
         //  PPUがstate.memory.VRAM領域を見て画面を更新
-        if (it % 10000 == 0) {
+        if (it % 200 == 0) {
             drawMainWindow()
+            if (++(state.memory.LY) == 154) {
+                state.memory.LY = 0
+            }
         }
 
         //  APUがstate.memory.AUDIO領域を見て音を出す
@@ -91,7 +95,16 @@ fun main(args: Array<String>) {
     val height = 256
     val zoom = 3
 
-    val mainWindow = Window(zoom * 160, zoom * 144, "gbem")
+    val mainWindow = Window(zoom * 160, zoom * 144, "gbem", object : Handlers {
+        override fun onA(pressed: Boolean) = state.setButtons(0, pressed)
+        override fun onB(pressed: Boolean) = state.setButtons(1, pressed)
+        override fun onStart(pressed: Boolean) = state.setButtons(3, pressed)
+        override fun onSelect(pressed: Boolean) = state.setButtons(2, pressed)
+        override fun onUp(pressed: Boolean) = state.setDPad(2, pressed)
+        override fun onDown(pressed: Boolean) = state.setDPad(3, pressed)
+        override fun onLeft(pressed: Boolean) = state.setDPad(1, pressed)
+        override fun onRight(pressed: Boolean) = state.setDPad(0, pressed)
+    })
 //    val backgroundDebugWindow = Window(zoom * width, zoom * height, "gbem background debug")
 
     // Create Monitor Window
@@ -99,7 +112,7 @@ fun main(args: Array<String>) {
 
     loop(Int.MAX_VALUE, state) {
         mainWindow.draw { buf ->
-            drawViewport(memory) { x, y, color ->
+            drawScanlineInViewport(memory, memory.getLY()) { x, y, color ->
                 buf.color = COLOR[color]
                 buf.fillRect(x * zoom, y * zoom, zoom, zoom)
             }

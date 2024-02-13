@@ -72,19 +72,6 @@ enum class LCDColor {
 }
 
 /**
- * The graphics are rendered from top to bottom in a loop like this:
- * - Load row LY of the background tile view to the line buffer.
- * - Overwrite the line buffer with row LY from the window tile view.
- * - Sprite engine generates a 1-pixel section of the sprites, where they intersect LY and overwrites the line buffer with this.
- */
-fun drawViewport(memory: Memory, drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit) {
-    for (ly in 0 until VIEWPORT_H) {
-        // TODO set LY register
-        drawScanlineInViewport(memory, ly, drawPixelToScreen)
-    }
-}
-
-/**
  * draw one scanline for LY = ly
  */
 fun drawScanlineInViewport(
@@ -92,6 +79,10 @@ fun drawScanlineInViewport(
     ly: Int,
     drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit,
 ) {
+    if (ly >= VIEWPORT_H) {
+        return
+    }
+
     val pixelMap = mutableMapOf<Int, LCDColor>()
 
     val LCDC = memory.get(ADDR_LCDC)
@@ -292,4 +283,5 @@ typealias Int2 = Int
 
 interface Memory {
     fun get(addr: Address): Int8
+    fun getLY(): Int8
 }

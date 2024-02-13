@@ -1,5 +1,7 @@
+
 import cpu.*
 import ppu.Address
+import ppu.Int8
 
 data class RegisterData(
     var pc: Int16 = 0,
@@ -82,7 +84,7 @@ abstract class Timer {
     }
 }
 
-data class TimerData (
+data class TimerData(
     var divCounter: Int8 = 0,
     var timaCounter: Int8 = 0,
     var tima: Int8 = 0,
@@ -90,12 +92,20 @@ data class TimerData (
     var tac: Int8 = 0,
 )
 
-class State (
+data class P1(
+    var dPad: Int8 = 0b1111,
+    var buttons: Int8 = 0b1111,
+    var selectDPad: Boolean = false,
+    var selectButtons: Boolean = false,
+)
+
+class State(
     private val romByteArray: ByteArray,
     val register: RegisterData = RegisterData(),
     val memory: MemoryData = MemoryData(),
     val timer: TimerData = TimerData(),
     var halted: Boolean = false,
+    private val p1: P1 = P1(),
 ) {
     fun registers() = object : Registers {
         override fun toString() = objToStringHex(this)
@@ -172,6 +182,18 @@ class State (
             in 0x8000..0x9FFF -> memory.vram[addr - 0x8000]
             in MemoryData.HRAM_RANGE -> memory.hram[addr - MemoryData.HRAM_RANGE.first]
             in MemoryData.OAM_RANGE -> memory.oam[addr - MemoryData.OAM_RANGE.first]
+            0xFF00 -> {
+                if (p1.selectButtons && !p1.selectDPad) {
+                    0x20 + p1.buttons
+                } else if (p1.selectDPad && !p1.selectButtons) {
+                    0x10 + p1.dPad
+                } else if (!p1.selectDPad && !p1.selectButtons){
+                    0x0F
+                } else {
+                    throw RuntimeException("Invalid P1 select")
+                }
+            }
+
             ADDR_IF -> memory.IF
             0xFF40 -> memory.LCDC
             0xFF41 -> memory.STAT
@@ -221,52 +243,35 @@ class State (
                     System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
                 }
                 // TODO: https://gbdev.io/pandocs/Hardware_Reg_List.html
+                0xFF00 -> {
+                    p1.selectDPad = int8 and 0b10000 == 0
+                    p1.selectButtons = int8 and 0b100000 == 0
+                }
                 0xFF01 -> {}
                 0xFF02 -> {}
                 0xFF05 -> setTima(int8)
                 0xFF07 -> setTac(int8)
-                ADDR_IF -> {
-                    memory.IF = int8
-                }
-
+                ADDR_IF -> memory.IF = int8
                 0xFF26 -> {}
                 0xFF25 -> {}
                 0xFF24 -> {}
-                0xFF40 -> {
-                    memory.LCDC = int8
+                0xFF40 -> memory.LCDC = int8
+                0xFF41 -> memory.STAT = int8
+                0xFF42 -> memory.SCY = int8
+                0xFF43 -> memory.SCX = int8
+                0xFF46 -> {
+                    // OAM DMA Transfer
+                    val startAddr = int8 shl 8
+                    for (i in 0 until 0xA0) {
+                        memory.oam[i] = get8(startAddr + i)
+                    }
                 }
 
-                0xFF41 -> {
-                    memory.STAT = int8
-                }
-
-                0xFF42 -> {
-                    memory.SCY = int8
-                }
-
-                0xFF43 -> {
-                    memory.SCX = int8
-                }
-
-                0xFF47 -> {
-                    memory.BGP = int8
-                }
-
-                0xFF48 -> {
-                    memory.OBP0 = int8
-                }
-
-                0xFF49 -> {
-                    memory.OBP1 = int8
-                }
-
-                0xFF4A -> {
-                    memory.WY = int8
-                }
-
-                0xFF4B -> {
-                    memory.WX = int8
-                }
+                0xFF47 -> memory.BGP = int8
+                0xFF48 -> memory.OBP0 = int8
+                0xFF49 -> memory.OBP1 = int8
+                0xFF4A -> memory.WY = int8
+                0xFF4B -> memory.WX = int8
 
                 in MemoryData.HRAM_RANGE -> {
                     memory.hram[addr - MemoryData.HRAM_RANGE.first] = int8
@@ -309,6 +314,8 @@ class State (
             return get8(addr)
         }
 
+        override fun getLY() = memory.LY
+
         override fun getIfForDebug(): Int8 {
             return memory.IF
         }
@@ -345,7 +352,28 @@ class State (
     }
 
     fun state(): cpu.State = object : cpu.State {
-        override fun setHalted(b: Boolean) { halted = b }
-        override fun getHalted(): Boolean { return halted }
+        override fun setHalted(b: Boolean) {
+            halted = b
+        }
+
+        override fun getHalted(): Boolean {
+            return halted
+        }
+    }
+
+    fun setDPad(bit: Int, pressed: Boolean) {
+        p1.dPad = if (pressed) {
+            p1.dPad and (0b0001).shl(bit).inv()
+        } else {
+            p1.dPad or (0b0001).shl(bit)
+        }
+    }
+
+    fun setButtons(bit: Int, pressed: Boolean) {
+        p1.buttons = if (pressed) {
+            p1.buttons and (0b0001).shl(bit).inv()
+        } else {
+            p1.buttons or (0b0001).shl(bit)
+        }
     }
 }

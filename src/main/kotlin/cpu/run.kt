@@ -662,7 +662,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpCpl -> {
-            regs.setA(regs.getA().xor(0xFF).and(0xFF))
+            regs.setA(regs.getA().inv().and(0xFF))
             regs.setSubtraction(true)
             regs.setHalfCarry(true)
             regs.incPc()
