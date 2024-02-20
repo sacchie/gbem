@@ -15,4 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: gradle/actions/setup-gradle@v3
+      - uses: actions/checkout@v4
+        with:
+          repository: retrio/gb-test-roms
+          path: test-roms
+          sparse-checkout: |
+            cpu_instrs/individual/
+      - run: ls -lR
       - run: ./gradlew build
