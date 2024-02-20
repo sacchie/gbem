@@ -25,7 +25,7 @@ interface Handlers {
     fun onRight(pressed: Boolean)
 }
 
-class Window(private val width: Int, private  val height:Int, title: String, handlers: Handlers) {
+class Window(private val width: Int, private  val height:Int, title: String) {
     private val canvas: Canvas
     private val graphics: Graphics
     private val image: Image
@@ -38,6 +38,18 @@ class Window(private val width: Int, private  val height:Int, title: String, han
         canvas = Canvas()
         canvas.setPreferredSize(Dimension(width, height))
 
+
+        frame.contentPane.add(canvas)
+        frame.pack()
+        frame.setLocationRelativeTo(null)
+        frame.isVisible = true
+
+        graphics = canvas.getGraphics()
+        image = canvas.createImage(width, height)
+        imageBuffer = image.getGraphics()
+    }
+
+    fun bindHandlers(handlers: Handlers) {
         canvas.addKeyListener(object : KeyAdapter() {
             override fun keyPressed(e: KeyEvent?) {
                 when(e?.keyCode) {
@@ -65,15 +77,6 @@ class Window(private val width: Int, private  val height:Int, title: String, han
                 }
             }
         })
-
-        frame.contentPane.add(canvas)
-        frame.pack()
-        frame.setLocationRelativeTo(null)
-        frame.isVisible = true
-
-        graphics = canvas.getGraphics()
-        image = canvas.createImage(width, height)
-        imageBuffer = image.getGraphics()
     }
 
     fun draw(f: (buf: Graphics)-> Unit) {

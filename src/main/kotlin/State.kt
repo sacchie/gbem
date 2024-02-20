@@ -194,7 +194,7 @@ class State(
                 }
             }
 
-            ADDR_IF -> memory.IF
+            0xFF0F -> memory.IF
             0xFF40 -> memory.LCDC
             0xFF41 -> memory.STAT
             0xFF42 -> memory.SCY
@@ -251,7 +251,7 @@ class State(
                 0xFF02 -> {}
                 0xFF05 -> setTima(int8)
                 0xFF07 -> setTac(int8)
-                ADDR_IF -> memory.IF = int8
+                0xFF0F -> memory.IF = int8
                 0xFF26 -> {}
                 0xFF25 -> {}
                 0xFF24 -> {}
