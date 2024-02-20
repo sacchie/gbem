@@ -31,10 +31,10 @@ jobs:
       - run: |
           mkdir -p src/test/resources
           cp -vR test-roms/cpu_instrs/individual/*.gb src/test/resources/
-      - run: ./gradlew test
+      - run: ./gradlew test --info
 
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: always()
+      - uses: dorny/test-reporter@v1
         with:
-          files: build/test-results/**/*.xml
+          name: Test Results
+          path: build/test-results/**/*.xml
+          reporter: java-junit
