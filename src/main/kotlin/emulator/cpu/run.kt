@@ -1,6 +1,7 @@
-package cpu
+package emulator.cpu
 
 import cpu.op.*
+import emulator.cpu.op.*
 
 interface Memory {
     fun get8(addr: Int16): Int8

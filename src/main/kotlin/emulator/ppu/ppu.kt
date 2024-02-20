@@ -1,4 +1,4 @@
-package ppu
+package emulator.ppu
 
 
 // 160x144 pixel LCD

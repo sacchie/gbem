@@ -1,4 +1,4 @@
-package cpu
+package emulator.cpu
 
 fun objToStringHex(obj: Any): String {
     val fields = obj::class.java.declaredFields
