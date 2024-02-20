@@ -3,8 +3,8 @@ import emulator.Emulation
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import ppu.LCDColor
-import ppu.drawScanlineInViewport
+import emulator.ppu.LCDColor
+import emulator.ppu.drawScanlineInViewport
 import java.net.URL
 
 internal class E2ETest {

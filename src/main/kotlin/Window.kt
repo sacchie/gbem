@@ -1,5 +1,5 @@
-package ppu
-
+import emulator.JoypadHandlers
+import emulator.ppu.LCDColor
 import java.awt.*
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
@@ -14,16 +14,6 @@ val COLOR = mapOf(
     LCDColor.White to Color(0xe0, 0xf8, 0xd0),
 )
 
-interface Handlers {
-    fun onA(pressed: Boolean)
-    fun onB(pressed: Boolean)
-    fun onStart(pressed: Boolean)
-    fun onSelect(pressed: Boolean)
-    fun onUp(pressed: Boolean)
-    fun onDown(pressed: Boolean)
-    fun onLeft(pressed: Boolean)
-    fun onRight(pressed: Boolean)
-}
 
 class Window(private val width: Int, private  val height:Int, title: String) {
     private val canvas: Canvas
@@ -49,31 +39,31 @@ class Window(private val width: Int, private  val height:Int, title: String) {
         imageBuffer = image.getGraphics()
     }
 
-    fun bindHandlers(handlers: Handlers) {
+    fun bindJoypadHandlers(joypadHandlers: JoypadHandlers) {
         canvas.addKeyListener(object : KeyAdapter() {
             override fun keyPressed(e: KeyEvent?) {
                 when(e?.keyCode) {
-                    KeyEvent.VK_A -> handlers.onA(true)
-                    KeyEvent.VK_B -> handlers.onB(true)
-                    KeyEvent.VK_ENTER -> handlers.onStart(true)
-                    KeyEvent.VK_SHIFT -> handlers.onSelect(true)
-                    KeyEvent.VK_UP -> handlers.onUp(true)
-                    KeyEvent.VK_DOWN -> handlers.onDown(true)
-                    KeyEvent.VK_LEFT -> handlers.onLeft(true)
-                    KeyEvent.VK_RIGHT -> handlers.onRight(true)
+                    KeyEvent.VK_A -> joypadHandlers.onA(true)
+                    KeyEvent.VK_B -> joypadHandlers.onB(true)
+                    KeyEvent.VK_ENTER -> joypadHandlers.onStart(true)
+                    KeyEvent.VK_SHIFT -> joypadHandlers.onSelect(true)
+                    KeyEvent.VK_UP -> joypadHandlers.onUp(true)
+                    KeyEvent.VK_DOWN -> joypadHandlers.onDown(true)
+                    KeyEvent.VK_LEFT -> joypadHandlers.onLeft(true)
+                    KeyEvent.VK_RIGHT -> joypadHandlers.onRight(true)
                 }
             }
 
             override fun keyReleased(e: KeyEvent?) {
                 when(e?.keyCode) {
-                    KeyEvent.VK_A -> handlers.onA(false)
-                    KeyEvent.VK_B -> handlers.onB(false)
-                    KeyEvent.VK_ENTER -> handlers.onStart(false)
-                    KeyEvent.VK_SHIFT -> handlers.onSelect(false)
-                    KeyEvent.VK_UP -> handlers.onUp(false)
-                    KeyEvent.VK_DOWN -> handlers.onDown(false)
-                    KeyEvent.VK_LEFT -> handlers.onLeft(false)
-                    KeyEvent.VK_RIGHT -> handlers.onRight(false)
+                    KeyEvent.VK_A -> joypadHandlers.onA(false)
+                    KeyEvent.VK_B -> joypadHandlers.onB(false)
+                    KeyEvent.VK_ENTER -> joypadHandlers.onStart(false)
+                    KeyEvent.VK_SHIFT -> joypadHandlers.onSelect(false)
+                    KeyEvent.VK_UP -> joypadHandlers.onUp(false)
+                    KeyEvent.VK_DOWN -> joypadHandlers.onDown(false)
+                    KeyEvent.VK_LEFT -> joypadHandlers.onLeft(false)
+                    KeyEvent.VK_RIGHT -> joypadHandlers.onRight(false)
                 }
             }
         })

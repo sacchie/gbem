@@ -1,12 +1,23 @@
 package emulator
 
-import State
-import cpu.run
-import ppu.Handlers
-import ppu.LCDColor
-import ppu.drawScanlineInViewport
+import emulator.cpu.handleInterrupts
+import emulator.cpu.run
+import emulator.cpu.op.parse
+import emulator.ppu.LCDColor
+import emulator.ppu.drawScanlineInViewport
 
 const val ADDR_IF = 0xFF0F
+
+interface JoypadHandlers {
+    fun onA(pressed: Boolean)
+    fun onB(pressed: Boolean)
+    fun onStart(pressed: Boolean)
+    fun onSelect(pressed: Boolean)
+    fun onUp(pressed: Boolean)
+    fun onDown(pressed: Boolean)
+    fun onLeft(pressed: Boolean)
+    fun onRight(pressed: Boolean)
+}
 
 abstract class Emulation(romByteArray: ByteArray) {
     val state = State(romByteArray)
@@ -30,8 +41,8 @@ abstract class Emulation(romByteArray: ByteArray) {
         loop(maxIterationCount, state)
     }
 
-    fun getHandlers(): Handlers {
-        return object : Handlers {
+    fun getJoypadHandlers(): JoypadHandlers {
+        return object : JoypadHandlers {
             override fun onA(pressed: Boolean) = state.setButtons(0, pressed)
             override fun onB(pressed: Boolean) = state.setButtons(1, pressed)
             override fun onStart(pressed: Boolean) = state.setButtons(3, pressed)
@@ -52,11 +63,11 @@ abstract class Emulation(romByteArray: ByteArray) {
 
         var count = 0L
         while (count++ < maxIterationCount) {
-            cpu.handleInterrupts(memory, registers, state.state())
+            handleInterrupts(memory, registers, state.state())
 
             if (!state.halted) {
                 val pc = registers.getPc()
-                val op = cpu.op.parse(memory, pc)
+                val op = parse(memory, pc)
 //            System.err.println(
 //                "${(if (state.register.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(state.register.callDepthForDebug))} 0x${
 //                    pc.toString(
@@ -68,7 +79,7 @@ abstract class Emulation(romByteArray: ByteArray) {
                 op.run(registers, memory, state.state())
             }
 
-            // Timer
+            // emulator.Timer
             val CYCLE_COUNT = 8 // FIXME とりあえず平均値近くで設定しているだけ（2-byte instructionを想定）
             if (timer.tick(CYCLE_COUNT)) {
                 memory.set8(ADDR_IF, memory.get8(ADDR_IF) or 0b100)

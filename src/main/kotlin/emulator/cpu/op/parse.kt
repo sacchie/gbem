@@ -1,8 +1,8 @@
-package cpu.op
+package emulator.cpu.op
 
-import cpu.Int16
-import cpu.Int8
-import cpu.Memory
+import emulator.cpu.Int16
+import emulator.cpu.Int8
+import emulator.cpu.Memory
 
 fun parseHorizontally(opcode: Int8, range: IntProgression, whenNonHl: (RegEnum8) -> Op, whenHl: () -> Op): Op? {
     val index = range.indexOf(opcode)
@@ -122,17 +122,32 @@ fun parse(memory: Memory, address: Int16): Op {
         when (opcode) {
             in 0xC0..0xD8 step 8 -> {
                 val idx = (opcode - 0xC0) / 8
-                val f = listOf(ConditionalJumpFlag.NZ, ConditionalJumpFlag.Z, ConditionalJumpFlag.NC, ConditionalJumpFlag.C)[idx]
+                val f = listOf(
+                    ConditionalJumpFlag.NZ,
+                    ConditionalJumpFlag.Z,
+                    ConditionalJumpFlag.NC,
+                    ConditionalJumpFlag.C
+                )[idx]
                 OpRetF(f)
             }
             in 0xC2..0xDA step 8 -> {
                 val idx = (opcode - 0xC2) / 8
-                val f = listOf(ConditionalJumpFlag.NZ, ConditionalJumpFlag.Z, ConditionalJumpFlag.NC, ConditionalJumpFlag.C)[idx]
+                val f = listOf(
+                    ConditionalJumpFlag.NZ,
+                    ConditionalJumpFlag.Z,
+                    ConditionalJumpFlag.NC,
+                    ConditionalJumpFlag.C
+                )[idx]
                 OpJpFNn(f, memory.get16(address+1))
             }
             in 0xC4..0xDC step 8 -> {
                 val idx = (opcode - 0xC4) / 8
-                val f = listOf(ConditionalJumpFlag.NZ, ConditionalJumpFlag.Z, ConditionalJumpFlag.NC, ConditionalJumpFlag.C)[idx]
+                val f = listOf(
+                    ConditionalJumpFlag.NZ,
+                    ConditionalJumpFlag.Z,
+                    ConditionalJumpFlag.NC,
+                    ConditionalJumpFlag.C
+                )[idx]
                 OpCallFN16(f, memory.get16(address+1))
             }
             in 0xC7 .. 0xFF step 8 -> {
@@ -205,19 +220,19 @@ private fun parsePrefixed(int8: Int8): Op {
                 val n = (int8 - 0x40) / 8
                 val start = 0x40 + n * 8
                 val end = start + 7
-                parseHorizontally(int8, start..end, {OpBitNR8(n, it)}, {OpBitNHL(n)})
+                parseHorizontally(int8, start..end, { OpBitNR8(n, it) }, { OpBitNHL(n) })
             }
             in 0x80..0xBF -> {
                 val n = (int8 - 0x80) / 8
                 val start = 0x80 + n * 8
                 val end = start + 7
-                parseHorizontally(int8, start..end, {OpResNR8(n, it)}, {OpResNHL(n)})
+                parseHorizontally(int8, start..end, { OpResNR8(n, it) }, { OpResNHL(n) })
             }
             in 0xC0..0xFF -> {
                 val n = (int8 - 0xC0) / 8
                 val start = 0xC0 + n * 8
                 val end = start + 7
-                parseHorizontally(int8, start..end, {OpSetNR8(n, it)}, {OpSetNHL(n)})
+                parseHorizontally(int8, start..end, { OpSetNR8(n, it) }, { OpSetNHL(n) })
             }
             else -> throw AssertionError()
         }

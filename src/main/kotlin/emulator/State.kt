@@ -1,7 +1,8 @@
-
-import cpu.*
-import ppu.Address
-import ppu.Int8
+package emulator
+import emulator.cpu.*
+import emulator.cpu.State
+import emulator.ppu.Address
+import emulator.ppu.Int8
 
 data class RegisterData(
     var pc: Int16 = 0,
@@ -39,7 +40,7 @@ data class MemoryData(
     }
 }
 
-interface Memory : cpu.Memory, ppu.Memory {
+interface Memory : emulator.cpu.Memory, emulator.ppu.Memory {
     fun getCartridgeType(): Int8
     fun getRomSize(): Int8
     fun getRamSize(): Int8
@@ -176,7 +177,7 @@ class State(
         override fun getRomSize() = romByteArray[0x0148].toInt() and 0xFF
         override fun getRamSize() = romByteArray[0x0149].toInt() and 0xFF
         private fun romBankEnd() = 0x7FFF
-        override fun get8(addr: Int16): cpu.Int8 = when (addr) {
+        override fun get8(addr: Int16): emulator.cpu.Int8 = when (addr) {
             in 0x0000..romBankEnd() -> romByteArray[addr].toInt() and 0xFF
             in 0xC000..0xDFFF -> memory.ram[addr - 0xC000]
             in 0x8000..0x9FFF -> memory.vram[addr - 0x8000]
@@ -190,7 +191,7 @@ class State(
                 } else if (!p1.selectDPad && !p1.selectButtons){
                     0x0F
                 } else {
-                    throw RuntimeException("Invalid P1 select")
+                    throw RuntimeException("Invalid emulator.P1 select")
                 }
             }
 
@@ -231,7 +232,7 @@ class State(
             else -> throw RuntimeException("Invalid address: 0x${addr.toString(16)}")
         }
 
-        override fun set8(addr: Int16, int8: cpu.Int8) {
+        override fun set8(addr: Int16, int8: emulator.cpu.Int8) {
             when (addr) {
                 in 0xC000..0xDFFF -> {
                     memory.ram[addr - 0xC000] = int8
@@ -310,7 +311,7 @@ class State(
             }
         }
 
-        override fun get(addr: Address): ppu.Int8 {
+        override fun get(addr: Address): Int8 {
             return get8(addr)
         }
 
@@ -351,7 +352,7 @@ class State(
         }
     }
 
-    fun state(): cpu.State = object : cpu.State {
+    fun state(): State = object : State {
         override fun setHalted(b: Boolean) {
             halted = b
         }

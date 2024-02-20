@@ -1,5 +1,5 @@
 import emulator.Emulation
-import ppu.*
+import emulator.ppu.LCDColor
 
 
 fun main(args: Array<String>) {
@@ -20,7 +20,7 @@ fun main(args: Array<String>) {
         }
     }
 
-    mainWindow.bindHandlers(emu.getHandlers())
+    mainWindow.bindJoypadHandlers(emu.getJoypadHandlers())
 
     emu.run()
 

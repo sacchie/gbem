@@ -1,8 +1,8 @@
-package cpu.op
+package emulator.cpu.op
 
-import cpu.Int16
-import cpu.Int8
-import cpu.objToStringHex
+import emulator.cpu.Int16
+import emulator.cpu.Int8
+import emulator.cpu.objToStringHex
 
 enum class RegEnum16(val num: Int8) {
     BC(0),
