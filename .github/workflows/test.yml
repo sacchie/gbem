@@ -27,6 +27,9 @@ jobs:
         with:
           path: test-roms
           key: ${{env.TEST_ROMS_SHA}}
-      - run: ls -lR
 
+      - run: |
+          mkdir -p src/test/resources
+          cp -vR test-roms/cpu_instrs/individual/*.gb src/test/resources/
+          ls -lR
       - run: ./gradlew build
