@@ -1,6 +1,5 @@
 package emulator.cpu
 
-import cpu.op.*
 import emulator.cpu.op.*
 
 interface Memory {
@@ -337,12 +336,12 @@ fun runIfConditionSatisfied(regs: Registers, f: ConditionalJumpFlag, thenDo: () 
     }
 }
 
-interface State {
+interface HaltState {
     fun setHalted(b: Boolean)
     fun getHalted(): Boolean
 }
 
-fun handleInterrupts(memory: Memory, regs: Registers, state: State) {
+fun handleInterrupts(memory: Memory, regs: Registers, haltState: HaltState) {
     fun getIE() = memory.get8(0xFFFF)
 
     //    fun getIF() = memory.get8(0xFF0F)
@@ -350,9 +349,9 @@ fun handleInterrupts(memory: Memory, regs: Registers, state: State) {
     fun setIF(v: Int8) = memory.set8(0xFF0F, v)
 
     if (0 < getIE().and(0b100) && 0 < getIF().and(0b100)) {
-        if (state.getHalted()) {
+        if (haltState.getHalted()) {
             regs.incPc()
-            state.setHalted(false)
+            haltState.setHalted(false)
         }
 
         if (regs.getIme()) {
@@ -361,12 +360,12 @@ fun handleInterrupts(memory: Memory, regs: Registers, state: State) {
             memory.set16(regs.getSp(), regs.getPc())
             regs.setPc(0x50)
             regs.setIme(false)
-            state.setHalted(false)
+            haltState.setHalted(false)
         }
     }
 }
 
-fun Op.run(regs: Registers, memory: Memory, state: State) {
+fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
     when (this) {
         is OpLdR8R8 -> {
             val yVal = regs.r8(y).get()
@@ -886,7 +885,7 @@ fun Op.run(regs: Registers, memory: Memory, state: State) {
         }
 
         is OpHalt -> {
-            state.setHalted(true)
+            haltState.setHalted(true)
         }
 
         is OpStop -> {
