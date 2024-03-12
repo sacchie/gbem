@@ -11,22 +11,24 @@ on:
 
 jobs:
   test:
+    env:
+      REF: c240dd7d700e5c0b00a7bbba52b53e4ee67b5f15
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: gradle/actions/setup-gradle@v3
 
-      - run: echo "TEST_ROMS_SHA=$(curl https://api.github.com/repos/retrio/gb-test-roms/branches/master | jq -r ".commit.sha")" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
           repository: retrio/gb-test-roms
+          ref: ${{ env.REF }}
           path: test-roms
           sparse-checkout: |
             cpu_instrs/individual/
       - uses: actions/cache@v4
         with:
           path: test-roms
-          key: ${{env.TEST_ROMS_SHA}}
+          key: key-${{ env.REF }}
 
       - run: |
           mkdir -p src/test/resources
