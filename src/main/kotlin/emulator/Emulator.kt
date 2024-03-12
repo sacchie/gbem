@@ -124,18 +124,35 @@ interface Memory : emulator.cpu.Memory, emulator.ppu.Memory {
     fun getRamSize(): Int8
 }
 
+// TODO
+// - MBC1
+// - ROM size = 32 KiB, # of rom banks = 2 (no banking)
+// - RAM size = 8 KiB, 1 bank
+
 // C000-CFFF: 4 KiB Work RAM (WRAM)
 // 8000-97FF: VRAM Tile Data https://gbdev.io/pandocs/Tile_Data.html
 // 9800-9FFF: VRAM Tile Maps https://gbdev.io/pandocs/Tile_Maps.html
-fun makeMemory(romByteArray: ByteArray, memory: MemoryData, timer: TimerData, p1: P1) = object : Memory {
+fun makeMemory(
+    romByteArray: ByteArray,
+    memory: MemoryData,
+    timer: TimerData,
+    p1: P1,
+    setRamEnable: (on: Boolean) -> Unit
+) = object : Memory {
     override fun getCartridgeType() = romByteArray[0x0147].toInt() and 0xFF
     override fun getRomSize() = romByteArray[0x0148].toInt() and 0xFF
     override fun getRamSize() = romByteArray[0x0149].toInt() and 0xFF
     private fun romBankEnd() = 0x7FFF
     override fun get8(addr: Int16): emulator.cpu.Int8 = when (addr) {
         in 0x0000..romBankEnd() -> romByteArray[addr].toInt() and 0xFF
-        in 0xC000..0xDFFF -> memory.ram[addr - 0xC000]
+        in 0xC000..0xDFFF -> memory.wram[addr - 0xC000]
         in 0x8000..0x9FFF -> memory.vram[addr - 0x8000]
+        in 0xA000..0xBFFF -> {
+            if (getCartridgeType() != 0x3) {
+                throw RuntimeException()
+            }
+            memory.externalRam[addr - 0xA000]
+        }
         in MemoryData.HRAM_RANGE -> memory.hram[addr - MemoryData.HRAM_RANGE.first]
         in MemoryData.OAM_RANGE -> memory.oam[addr - MemoryData.OAM_RANGE.first]
         0xFF00 -> {
@@ -166,21 +183,27 @@ fun makeMemory(romByteArray: ByteArray, memory: MemoryData, timer: TimerData, p1
     }
 
     override fun get16(addr: Int16): Int16 = when (addr) {
-        in 0x0000..romBankEnd() -> {
+        in 0x0000 until romBankEnd() -> {
             val lo = romByteArray[addr + 0].toInt() and 0xFF
             val hi = romByteArray[addr + 1].toInt() and 0xFF
             hi.shl(8) + lo
         }
 
-        in 0x8000..0x9FFE -> {
+        in 0x8000 until 0x9FFF -> {
             val lo = memory.vram[addr - 0x8000 + 0]
             val hi = memory.vram[addr - 0x8000 + 1]
             hi.shl(8) + lo
         }
 
-        in 0xC000..0xDFFE -> {
-            val lo = memory.ram[addr - 0xC000 + 0]
-            val hi = memory.ram[addr - 0xC000 + 1]
+        in 0xC000 until 0xDFFF -> {
+            val lo = memory.wram[addr - 0xC000 + 0]
+            val hi = memory.wram[addr - 0xC000 + 1]
+            hi.shl(8) + lo
+        }
+
+        in MemoryData.HRAM_RANGE.first until MemoryData.HRAM_RANGE.last -> {
+            val lo = memory.hram[addr - MemoryData.HRAM_RANGE.first + 0]
+            val hi = memory.hram[addr - MemoryData.HRAM_RANGE.first + 1]
             hi.shl(8) + lo
         }
 
@@ -189,8 +212,26 @@ fun makeMemory(romByteArray: ByteArray, memory: MemoryData, timer: TimerData, p1
 
     override fun set8(addr: Int16, int8: emulator.cpu.Int8) {
         when (addr) {
+            0x0000 -> {
+                if (getCartridgeType() != 0x3 /* not MBC1 */) {
+                    throw RuntimeException()
+                } else {
+                    setRamEnable(int8 == 0xA)
+                }
+            }
+            0x2000 -> {} /* just ignore, implementaion required for ROM banking */
+            0x4000 -> {} /* just ignore, implementaion required for ROM banking */
+
+            in 0xA000..0xBFFF -> {
+                if (getCartridgeType() != 0x3) {
+                    throw RuntimeException()
+                }
+                memory.externalRam[addr - 0xA000] = int8
+//                    System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
+            }
+
             in 0xC000..0xDFFF -> {
-                memory.ram[addr - 0xC000] = int8
+                memory.wram[addr - 0xC000] = int8
 //                    System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
             }
 
@@ -209,9 +250,8 @@ fun makeMemory(romByteArray: ByteArray, memory: MemoryData, timer: TimerData, p1
             0xFF05 -> setTima(int8)
             0xFF07 -> setTac(int8)
             0xFF0F -> memory.IF = int8
-            0xFF26 -> {}
-            0xFF25 -> {}
-            0xFF24 -> {}
+            in 0xFF10..0xFF26 -> {} /* TODO audio */
+
             0xFF40 -> memory.LCDC = int8
             0xFF41 -> memory.STAT = int8
             0xFF42 -> memory.SCY = int8
@@ -246,8 +286,8 @@ fun makeMemory(romByteArray: ByteArray, memory: MemoryData, timer: TimerData, p1
     override fun set16(addr: Int16, int16: Int16) {
         when (addr) {
             in 0xC000..0xDFFE -> {
-                memory.ram[addr - 0xC000 + 0] = int16.lo()
-                memory.ram[addr - 0xC000 + 1] = int16.hi()
+                memory.wram[addr - 0xC000 + 0] = int16.lo()
+                memory.wram[addr - 0xC000 + 1] = int16.hi()
 //                    System.err.println("set16: [0x${addr.toString(16)}] <- 0x${int16.toString(16)}")
             }
 
@@ -344,7 +384,7 @@ abstract class Emulation(private val romByteArray: ByteArray) {
 
     fun run(maxIterationCount: Long = Long.MAX_VALUE) {
         val registers = makeRegisters(state.register)
-        val memory = makeMemory(romByteArray, state.memory, state.timer, state.p1)
+        val memory = makeMemory(romByteArray, state.memory, state.timer, state.p1, { on -> state.ramEnable = on })
         val timer = makeTimer(state.timer)
 
         val haltState = object : HaltState {
@@ -369,7 +409,19 @@ abstract class Emulation(private val romByteArray: ByteArray) {
             })"
         )
 
+        // initialize like boot ROM
+        registers.setA(0x01)
+        registers.setZero(true)
+        registers.setSubtraction(false)
+        // TODO set or reset according to header checksum
+        registers.setB(0x00)
+        registers.setC(0x13)
+        registers.setD(0x00)
+        registers.setE(0xD8)
+        registers.setH(0x01)
+        registers.setL(0x4D)
         state.register.pc = 0x100
+        state.register.sp = 0xFFFE
 
         var count = 0L
         while (count++ < maxIterationCount) {
@@ -378,13 +430,17 @@ abstract class Emulation(private val romByteArray: ByteArray) {
             if (!state.halted) {
                 val pc = registers.getPc()
                 val op = parse(memory, pc)
-//            System.err.println(
-//                "${(if (state.register.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(state.register.callDepthForDebug))} 0x${
-//                    pc.toString(
-//                        16
-//                    )
-//                }: $op"
-//            )
+
+                if (count > 1000000L) {
+                    System.err.println(
+                        "${(if (state.register.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(state.register.callDepthForDebug))} 0x${
+                            pc.toString(
+                                16
+                            )
+                        }: $op"
+                    )
+                }
+
                 //  CPUがstateを更新
                 op.run(registers, memory, haltState)
             }

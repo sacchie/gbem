@@ -1,5 +1,5 @@
 package emulator
-import emulator.cpu.*
+import emulator.cpu.Int16
 import emulator.ppu.Int8
 
 data class RegisterData(
@@ -14,7 +14,8 @@ data class RegisterData(
 )
 
 data class MemoryData(
-    val ram: MutableList<Int8> = MutableList(0x2000) { 0 },
+    val wram: MutableList<Int8> = MutableList(0x2000) { 0 },
+    val externalRam: MutableList<Int8> = MutableList(0x2000) { 0 }, // TODO banking for non-MBC1
     val vram: MutableList<Int8> = MutableList(0x2000) { 0 },
     val hram: MutableList<Int8> = MutableList(HRAM_RANGE.count()) { 0 },
     val oam: MutableList<Int8> = MutableList(OAM_RANGE.count()) { 0 },
@@ -59,4 +60,5 @@ data class State(
     val timer: TimerData = TimerData(),
     var halted: Boolean = false,
     val p1: P1 = P1(),
+    var ramEnable: Boolean = false /* currently only for MBC1 (cartridgeType = $03) */
 )
