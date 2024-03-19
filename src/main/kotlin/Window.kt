@@ -70,7 +70,6 @@ class Window(private val width: Int, private  val height:Int, title: String) {
     }
 
     fun draw(f: (buf: Graphics)-> Unit) {
-        // imageBuffer.clearRect(0, 0, width, height)
         f(imageBuffer)
         graphics.drawImage(image, 0, 0, canvas)
     }

@@ -171,6 +171,8 @@ fun makeMemory(
         }
 
         0xFF0F -> memory.IF
+        0xFF12 -> 0 /* TODO audio */
+        0xFF17 -> 0 /* TODO audio */
         0xFF40 -> memory.LCDC
         0xFF41 -> memory.STAT
         0xFF42 -> memory.SCY
@@ -254,11 +256,12 @@ fun makeMemory(
             0xFF07 -> setTac(int8)
             0xFF0F -> memory.IF = int8
             in 0xFF10..0xFF26 -> {} /* TODO audio */
-
+            in 0xFF30 .. 0xFF3F -> {} /* TODO audio */
             0xFF40 -> memory.LCDC = int8
             0xFF41 -> memory.STAT = int8
             0xFF42 -> memory.SCY = int8
             0xFF43 -> memory.SCX = int8
+            0xFF45 -> {} /* TODO audio */
             0xFF46 -> {
                 // OAM DMA Transfer
                 val startAddr = int8 shl 8
@@ -354,7 +357,7 @@ fun makeTimer(timer: TimerData): Timer = object : Timer() {
 abstract class Emulation(private val romByteArray: ByteArray) {
     val state = State()
 
-    abstract fun startDrawingScanLine(drawScanLine: (drawPixel: (x: Int, y: Int, color: LCDColor) -> Unit) -> Unit)
+    abstract fun startDrawingScanLine(ly: Int, drawScanLine: (drawPixel: (x: Int, y: Int, color: LCDColor) -> Unit) -> Unit)
 
     fun getJoypadHandlers(): JoypadHandlers {
         fun setDPad(bit: Int, pressed: Boolean) {
@@ -434,15 +437,18 @@ abstract class Emulation(private val romByteArray: ByteArray) {
                 val pc = registers.getPc()
                 val op = parse(memory, pc)
 
-                if (count > 1000000L) {
-                    System.err.println(
-                        "${(if (state.register.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(state.register.callDepthForDebug))} 0x${
-                            pc.toString(
-                                16
-                            )
-                        }: $op"
-                    )
+                /*
+if (count > 1000000L) {
+System.err.println(
+    "${(if (state.register.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(state.register.callDepthForDebug))} 0x${
+        pc.toString(
+            16
+        )
+    }: $op"
+)
                 }
+                */
+
 
                 //  CPUがstateを更新
                 op.run(registers, memory, haltState)
@@ -460,7 +466,7 @@ abstract class Emulation(private val romByteArray: ByteArray) {
                     memory.enableInterruptFlag(0b1)
                 }
 
-                startDrawingScanLine {
+                startDrawingScanLine(state.memory.LY) {
                     drawScanlineInViewport(memory, state.memory.LY, it)
                 }
 
