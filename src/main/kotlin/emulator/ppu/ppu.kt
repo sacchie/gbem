@@ -84,22 +84,27 @@ fun drawScanlineInViewport(
     }
 
     val pixelMap = mutableMapOf<Int, LCDColor>()
+    val dotDataMap = mutableMapOf<Int, Int2>()
 
     val LCDC = memory.get(ADDR_LCDC)
     val bgAndWindowEnabled = (LCDC and 0x0001) == 1
     if (bgAndWindowEnabled) {
-        drawBackgroundForScanlineInViewport(memory, LCDC, ly) { x, _, color -> pixelMap[x] = color }
+        drawBackgroundForScanlineInViewport(memory, LCDC, ly) { x, _, color, dotData ->
+            run {
+                pixelMap[x] = color
+                dotDataMap[x] = dotData
+            }
+        }
     }
     val windowEnabled = (LCDC and 1.shl(5)) > 0
     if (windowEnabled && bgAndWindowEnabled) {
         drawWindowForScanlineInViewport(memory, LCDC, ly) { x, _, color -> pixelMap[x] = color }
     }
     putSpritePixelsForScanlineInViewportToBuffer(memory, LCDC, ly) { x, color, bgAndWindowOverObj ->
-        if (bgAndWindowOverObj) {
-            if (pixelMap[x] == null) {
-                pixelMap[x] = color
+        run {
+            if (bgAndWindowOverObj && dotDataMap[x] != 0) {
+                return@run
             }
-        } else {
             pixelMap[x] = color
         }
     }
@@ -113,7 +118,7 @@ private fun drawBackgroundForScanlineInViewport(
     memory: Memory,
     LCDC: Int8,
     ly: Int,
-    drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit
+    drawPixelToScreen: (x: Int, y: Int, color: LCDColor, dotData: Int2) -> Unit
 ) {
     val bgTileMapHead: Address = if ((LCDC and 0b1000) == 0b1000) 0x9C00 else 0x9800
     val LCDC4 = (LCDC and 0b10000) == 0b10000
@@ -133,7 +138,7 @@ private fun drawBackgroundForScanlineInViewport(
 
         val dotData: Int2 = getDotDataOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
         val color = getColorForBackgroundAndWindow(dotData, BGP)
-        drawPixelToScreen(lx, ly, color)
+        drawPixelToScreen(lx, ly, color, dotData)
     }
 }
 
