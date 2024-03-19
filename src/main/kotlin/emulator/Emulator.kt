@@ -124,6 +124,9 @@ interface Memory : emulator.cpu.Memory, emulator.ppu.Memory {
     fun getRamSize(): Int8
 }
 
+fun Memory.enableInterruptFlag(flag: Int8) = set8(ADDR_IF, get8(ADDR_IF) or flag)
+
+
 // TODO
 // - MBC1
 // - ROM size = 32 KiB, # of rom banks = 2 (no banking)
@@ -448,16 +451,22 @@ abstract class Emulation(private val romByteArray: ByteArray) {
             // emulator.Timer
             val CYCLE_COUNT = 8 // FIXME とりあえず平均値近くで設定しているだけ（2-byte instructionを想定）
             if (timer.tick(CYCLE_COUNT)) {
-                memory.set8(ADDR_IF, memory.get8(ADDR_IF) or 0b100)
+                memory.enableInterruptFlag(0b100)
             }
 
             //  PPUがstate.memory.VRAM領域を見て画面を更新
             if (count % 200L == 0L) {
+                if (state.memory.LY == 144) {
+                    memory.enableInterruptFlag(0b1)
+                }
+
                 startDrawingScanLine {
                     drawScanlineInViewport(memory, state.memory.LY, it)
                 }
 
-                if (++(state.memory.LY) == 154) {
+                state.memory.LY++
+
+                if (state.memory.LY == 154) {
                     state.memory.LY = 0
                 }
             }

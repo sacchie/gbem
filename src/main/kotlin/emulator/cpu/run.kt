@@ -348,7 +348,21 @@ fun handleInterrupts(memory: Memory, regs: Registers, haltState: HaltState) {
     fun getIF() = memory.getIfForDebug() // FIXME 不要になったら消す
     fun setIF(v: Int8) = memory.set8(0xFF0F, v)
 
-    if (0 < getIE().and(0b100) && 0 < getIF().and(0b100)) {
+    if (0 < getIE().and(0b1) && 0 < getIF().and(0b1)) {
+        if (haltState.getHalted()) {
+            regs.incPc()
+            haltState.setHalted(false)
+        }
+
+        if (regs.getIme()) {
+            setIF(getIF().and(0b11111110))
+            regs.setSp(regs.getSp() - 2)
+            memory.set16(regs.getSp(), regs.getPc())
+            regs.setPc(0x40)
+            regs.setIme(false)
+            haltState.setHalted(false)
+        }
+    } else if (0 < getIE().and(0b100) && 0 < getIF().and(0b100)) {
         if (haltState.getHalted()) {
             regs.incPc()
             haltState.setHalted(false)
