@@ -71,12 +71,23 @@ enum class LCDColor {
     White, LightGray, DarkGray, Black;
 }
 
+data class DebugParams(
+    var drawBackground: Boolean,
+    var drawWindow: Boolean,
+    var drawSprites: Boolean
+) {
+    override fun toString(): String {
+        return "BG:${drawBackground}/Win:${drawWindow}/Sp:${drawSprites}"
+    }
+}
+
 /**
  * draw one scanline for LY = ly
  */
 fun drawScanlineInViewport(
     memory: Memory,
     ly: Int,
+    debugParams: DebugParams,
     drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit,
 ) {
     if (ly >= VIEWPORT_H) {
@@ -87,17 +98,19 @@ fun drawScanlineInViewport(
     val LCDC = memory.get(ADDR_LCDC)
     for (lx in 0 until VIEWPORT_W) {
         val bgAndWindowEnabled = (LCDC and 0x0001) == 1
-        val bgDotData = if (bgAndWindowEnabled) getDotDataForBackdround(memory, LCDC, ly, lx) else null
+        val bgDotData = if (debugParams.drawBackground && bgAndWindowEnabled) getDotDataForBackdround(memory, LCDC, ly, lx) else null
 
         val windowEnabled = (LCDC and 1.shl(5)) > 0
-        val windowDotData = if (windowEnabled && bgAndWindowEnabled) getDotDataForWindow(memory, LCDC, ly, lx) else null
+        val windowDotData = if (debugParams.drawWindow && windowEnabled && bgAndWindowEnabled) getDotDataForWindow(memory, LCDC, ly, lx) else null
 
         bgAndWindowDotDataMap[lx] = windowDotData ?: bgDotData
     }
 
     val spriteDataMap = mutableMapOf<Int, Pair<LCDColor, Boolean>>()
-    forEachSpritePixelForScanlineInViewportToBuffer(memory, LCDC, ly) { x, color, bgAndWindowOverObj ->
-        spriteDataMap[x] = Pair(color, bgAndWindowOverObj)
+    if (debugParams.drawSprites) {
+        forEachSpritePixelForScanlineInViewportToBuffer(memory, LCDC, ly) { x, color, bgAndWindowOverObj ->
+            spriteDataMap[x] = Pair(color, bgAndWindowOverObj)
+        }
     }
 
     val BGP = memory.get(ADDR_BGP)

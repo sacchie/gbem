@@ -1,5 +1,6 @@
 package emulator
 import emulator.cpu.Int16
+import emulator.ppu.DebugParams
 import emulator.ppu.Int8
 
 data class RegisterData(
@@ -60,5 +61,6 @@ data class State(
     val timer: TimerData = TimerData(),
     var halted: Boolean = false,
     val p1: P1 = P1(),
-    var ramEnable: Boolean = false /* currently only for MBC1 (cartridgeType = $03) */
+    var ramEnable: Boolean = false, /* currently only for MBC1 (cartridgeType = $03) */
+    val ppuDebugParams: DebugParams = DebugParams(drawBackground = true, drawWindow = true, drawSprites = true)
 )

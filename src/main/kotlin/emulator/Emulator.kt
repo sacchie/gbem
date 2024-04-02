@@ -3,6 +3,7 @@ package emulator
 import emulator.cpu.*
 import emulator.cpu.op.parse
 import emulator.ppu.Address
+import emulator.ppu.DebugParams
 import emulator.ppu.LCDColor
 import emulator.ppu.drawScanlineInViewport
 
@@ -357,7 +358,7 @@ fun makeTimer(timer: TimerData): Timer = object : Timer() {
 abstract class Emulation(private val romByteArray: ByteArray) {
     val state = State()
 
-    abstract fun startDrawingScanLine(ly: Int, drawScanLine: (drawPixel: (x: Int, y: Int, color: LCDColor) -> Unit) -> Unit)
+    abstract fun startDrawingScanLine(ly: Int,  ppuDebugParams: DebugParams, drawScanLine: (drawPixel: (x: Int, y: Int, color: LCDColor) -> Unit) -> Unit)
 
     fun getJoypadHandlers(): JoypadHandlers {
         fun setDPad(bit: Int, pressed: Boolean) {
@@ -386,6 +387,18 @@ abstract class Emulation(private val romByteArray: ByteArray) {
             override fun onLeft(pressed: Boolean) = setDPad(1, pressed)
             override fun onRight(pressed: Boolean) = setDPad(0, pressed)
         }
+    }
+
+    fun toggleDrawBackground() {
+        state.ppuDebugParams.drawBackground = !state.ppuDebugParams.drawBackground
+    }
+
+    fun toggleDrawWindow() {
+        state.ppuDebugParams.drawWindow = !state.ppuDebugParams.drawWindow
+    }
+
+    fun toggleDrawSprites() {
+        state.ppuDebugParams.drawSprites = !state.ppuDebugParams.drawSprites
     }
 
     fun run(maxIterationCount: Long = Long.MAX_VALUE) {
@@ -466,8 +479,8 @@ System.err.println(
                     memory.enableInterruptFlag(0b1)
                 }
 
-                startDrawingScanLine(state.memory.LY) {
-                    drawScanlineInViewport(memory, state.memory.LY, it)
+                startDrawingScanLine(state.memory.LY, state.ppuDebugParams) {
+                    drawScanlineInViewport(memory, state.memory.LY, state.ppuDebugParams, it)
                 }
 
                 state.memory.LY++
