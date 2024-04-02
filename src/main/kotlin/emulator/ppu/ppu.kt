@@ -83,38 +83,43 @@ fun drawScanlineInViewport(
         return
     }
 
-    val pixelMap = mutableMapOf<Int, LCDColor>()
-
+    val bgAndWindowDotDataMap = MutableList<Int2?>(VIEWPORT_W) { null }
     val LCDC = memory.get(ADDR_LCDC)
-    val bgAndWindowEnabled = (LCDC and 0x0001) == 1
-    if (bgAndWindowEnabled) {
-        drawBackgroundForScanlineInViewport(memory, LCDC, ly) { x, _, color -> pixelMap[x] = color }
-    }
-    val windowEnabled = (LCDC and 1.shl(5)) > 0
-    if (windowEnabled && bgAndWindowEnabled) {
-        drawWindowForScanlineInViewport(memory, LCDC, ly) { x, _, color -> pixelMap[x] = color }
-    }
-    putSpritePixelsForScanlineInViewportToBuffer(memory, LCDC, ly) { x, color, bgAndWindowOverObj ->
-        if (bgAndWindowOverObj) {
-            if (pixelMap[x] == null) {
-                pixelMap[x] = color
-            }
-        } else {
-            pixelMap[x] = color
-        }
+    for (lx in 0 until VIEWPORT_W) {
+        val bgAndWindowEnabled = (LCDC and 0x0001) == 1
+        val bgDotData = if (bgAndWindowEnabled) getDotDataForBackdround(memory, LCDC, ly, lx) else null
+
+        val windowEnabled = (LCDC and 1.shl(5)) > 0
+        val windowDotData = if (windowEnabled && bgAndWindowEnabled) getDotDataForWindow(memory, LCDC, ly, lx) else null
+
+        bgAndWindowDotDataMap[lx] = windowDotData ?: bgDotData
     }
 
-    pixelMap.forEach { (x, color) ->
-        drawPixelToScreen(x, ly, color)
+    val spriteDataMap = mutableMapOf<Int, Pair<LCDColor, Boolean>>()
+    forEachSpritePixelForScanlineInViewportToBuffer(memory, LCDC, ly) { x, color, bgAndWindowOverObj ->
+        spriteDataMap[x] = Pair(color, bgAndWindowOverObj)
+    }
+
+    val BGP = memory.get(ADDR_BGP)
+    for (lx in 0 until VIEWPORT_W) {
+        val spriteData = spriteDataMap[lx]
+        val bgAndWindowDotData = bgAndWindowDotDataMap[lx]
+        if (spriteData == null || (spriteData.second && bgAndWindowDotData != null && bgAndWindowDotData != 0)) {
+            // lx にスプライトが無い、あるいはあるがBG/Window優先
+            bgAndWindowDotData?.let { drawPixelToScreen(lx, ly, getColorForBackgroundAndWindow(it, BGP)) }
+        } else {
+            // スプライト優先
+            drawPixelToScreen(lx, ly, spriteData.first)
+        }
     }
 }
 
-private fun drawBackgroundForScanlineInViewport(
+private fun getDotDataForBackdround(
     memory: Memory,
     LCDC: Int8,
     ly: Int,
-    drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit
-) {
+    lx: Int,
+): Int2 {
     val bgTileMapHead: Address = if ((LCDC and 0b1000) == 0b1000) 0x9C00 else 0x9800
     val LCDC4 = (LCDC and 0b10000) == 0b10000
     val SCX = memory.get(ADDR_SCX)
@@ -122,19 +127,15 @@ private fun drawBackgroundForScanlineInViewport(
     val yOnScreen = (SCY + ly) % SCREEN_H
     val tileY = yOnScreen / TILE_H
     val yOnTile = yOnScreen % TILE_H
-    val BGP = memory.get(ADDR_BGP)
-    for (lx in 0 until VIEWPORT_W) {
-        val xOnScreen = (SCX + lx) % SCREEN_W
-        val tileX = xOnScreen / TILE_W
-        val xOnTile = xOnScreen % TILE_W
 
-        val iTile = tileX + 32 * tileY
-        val tileId = memory.get(bgTileMapHead + iTile)
+    val xOnScreen = (SCX + lx) % SCREEN_W
+    val tileX = xOnScreen / TILE_W
+    val xOnTile = xOnScreen % TILE_W
 
-        val dotData: Int2 = getDotDataOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
-        val color = getColorForBackgroundAndWindow(dotData, BGP)
-        drawPixelToScreen(lx, ly, color)
-    }
+    val iTile = tileX + 32 * tileY
+    val tileId = memory.get(bgTileMapHead + iTile)
+
+    return getDotDataOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
 }
 
 private fun getColorForBackgroundAndWindow(dotData: Int2, BGP: Int8): LCDColor {
@@ -168,43 +169,41 @@ private fun toColor(value: Int2) = when (value) {
     else -> throw IllegalArgumentException()
 }
 
-private fun drawWindowForScanlineInViewport(
+// null は window がないケース
+private fun getDotDataForWindow(
     memory: Memory,
     LCDC: Int8,
     ly: Int,
-    drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit
-) {
+    lx: Int,
+): Int2? {
     val windowTileMapHead: Address = if ((LCDC and 1.shl(6)) > 0) 0x9C00 else 0x9800
     val LCDC4 = (LCDC and 1.shl(4)) > 0
     val WX = memory.get(ADDR_WX) // X position plus 7
     val WY = memory.get(ADDR_WY)
     if (ly < WY) {
-        return
+        return null
     }
     val yOnWindow = ly - WY
     val tileY = yOnWindow / TILE_H
     val yOnTile = yOnWindow % TILE_H
-    val BGP = memory.get(ADDR_BGP)
-    for (lx in 0 until VIEWPORT_W) {
-        if (lx < WX - 7) continue
-        val xOnWindow = lx - (WX - 7)
-        val tileX = xOnWindow / TILE_W
-        val xOnTile = xOnWindow % TILE_W
-
-        val iTile = tileX + 32 * tileY
-        val tileId = memory.get(windowTileMapHead + iTile)
-
-        val dotData = getDotDataOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
-        val color = getColorForBackgroundAndWindow(dotData, BGP)
-        drawPixelToScreen(lx, ly, color)
+    if (lx < WX - 7) {
+        return null
     }
+    val xOnWindow = lx - (WX - 7)
+    val tileX = xOnWindow / TILE_W
+    val xOnTile = xOnWindow % TILE_W
+
+    val iTile = tileX + 32 * tileY
+    val tileId = memory.get(windowTileMapHead + iTile)
+
+    return getDotDataOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
 }
 
-private fun putSpritePixelsForScanlineInViewportToBuffer(
+private fun forEachSpritePixelForScanlineInViewportToBuffer(
     memory: Memory,
     LCDC: Int8,
     ly: Int,
-    putPixel: (x: Int, color: LCDColor, bgAndWindowOverObj: Boolean) -> Unit
+    cb: (x: Int, color: LCDColor, bgAndWindowOverObj: Boolean) -> Unit
 ) {
     // OAM (0xFE00-FE9F) から ly にあるsprite（上限10個）を取ってきて、描画
     val is8x16Mode = LCDC.and(0b100) > 0
@@ -228,7 +227,7 @@ private fun putSpritePixelsForScanlineInViewportToBuffer(
                 val dotData = getDotDataOfPixelOnTileForSprites(memory, tileId, xOnTile, yOnTile)
                 val color = getColorForSprite(dotData, OBP)
                 if (color != null) {
-                    putPixel(xOnScreen, color, bgAndWindowOverObj)
+                    cb(xOnScreen, color, bgAndWindowOverObj)
                 }
             }
             if (drawCount == 10) {
