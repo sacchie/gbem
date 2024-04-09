@@ -1,10 +1,10 @@
+
 import emulator.Emulation
+import emulator.ppu.DebugParams
+import emulator.ppu.LCDColor
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import emulator.ppu.LCDColor
-import emulator.ppu.drawScanlineInViewport
-import java.net.URL
 
 
 internal class E2ETest {
@@ -18,7 +18,7 @@ internal class E2ETest {
 
         val romByteArray = object {}.javaClass.getResourceAsStream("${romFileName}.gb")!!.readAllBytes()
         val emu = object : Emulation(romByteArray) {
-            override fun startDrawingScanLine(drawScanLine: (drawPixel: (x: Int, y: Int, color: LCDColor) -> Unit) -> Unit) {
+            override fun startDrawingScanLine(ly: Int, ppuDebugParams: DebugParams, drawScanLine: (drawPixel: (x: Int, y: Int, color: LCDColor) -> Unit) -> Unit) {
                 drawScanLine { x, y, color -> buf[x][y] = color }
             }
         }
