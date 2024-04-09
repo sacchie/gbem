@@ -1,11 +1,9 @@
 package emulator
 
 import emulator.cpu.*
+import emulator.cpu.Int8
 import emulator.cpu.op.parse
-import emulator.ppu.Address
-import emulator.ppu.DebugParams
-import emulator.ppu.LCDColor
-import emulator.ppu.drawScanlineInViewport
+import emulator.ppu.*
 
 const val ADDR_IF = 0xFF0F
 
@@ -18,6 +16,13 @@ interface JoypadHandlers {
     fun onDown(pressed: Boolean)
     fun onLeft(pressed: Boolean)
     fun onRight(pressed: Boolean)
+}
+
+interface DebugHandlers {
+    fun toggleDrawBackground()
+    fun toggleDrawWindow()
+    fun toggleDrawSprites()
+    fun printOamData()
 }
 
 abstract class Timer {
@@ -389,16 +394,27 @@ abstract class Emulation(private val romByteArray: ByteArray) {
         }
     }
 
-    fun toggleDrawBackground() {
-        state.ppuDebugParams.drawBackground = !state.ppuDebugParams.drawBackground
-    }
+    fun getDebugHandlers(): DebugHandlers {
+        return object : DebugHandlers {
+            override fun toggleDrawBackground() {
+                state.ppuDebugParams.drawBackground = !state.ppuDebugParams.drawBackground
+            }
 
-    fun toggleDrawWindow() {
-        state.ppuDebugParams.drawWindow = !state.ppuDebugParams.drawWindow
-    }
+            override fun toggleDrawWindow() {
+                state.ppuDebugParams.drawWindow = !state.ppuDebugParams.drawWindow
+            }
 
-    fun toggleDrawSprites() {
-        state.ppuDebugParams.drawSprites = !state.ppuDebugParams.drawSprites
+            override fun toggleDrawSprites() {
+                state.ppuDebugParams.drawSprites = !state.ppuDebugParams.drawSprites
+            }
+
+            override fun printOamData() {
+                val memory = makeMemory(romByteArray, state.memory, state.timer, state.p1, {  })
+                for (i in 0..39) {
+                    println("$i OAM data: ${memory.getOamData(i)}")
+                }
+            }
+        }
     }
 
     fun run(maxIterationCount: Long = Long.MAX_VALUE) {

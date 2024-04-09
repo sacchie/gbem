@@ -1,6 +1,7 @@
 import emulator.Emulation
 import emulator.ppu.DebugParams
 import emulator.ppu.LCDColor
+import emulator.ppu.OamData
 
 
 fun main(args: Array<String>) {
@@ -19,11 +20,12 @@ fun main(args: Array<String>) {
                     buf.fillRect(x * zoom, y * zoom, zoom, zoom)
                 }
             }
-            mainWindow.updateTitle(ppuDebugParams.toString())
+            // FIXME: WSLでこれをするとIntelliJごとフリーズする
+            // mainWindow.updateTitle(ppuDebugParams.toString())
         }
     }
 
-    mainWindow.bindJoypadHandlers(emu.getJoypadHandlers(), emu::toggleDrawBackground, emu::toggleDrawWindow, emu::toggleDrawSprites)
+    mainWindow.bindJoypadHandlers(emu.getJoypadHandlers(), emu.getDebugHandlers())
 
     emu.run()
 

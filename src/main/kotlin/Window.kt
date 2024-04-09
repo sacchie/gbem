@@ -1,3 +1,4 @@
+import emulator.DebugHandlers
 import emulator.JoypadHandlers
 import emulator.ppu.LCDColor
 import java.awt.*
@@ -40,7 +41,7 @@ class Window(private val width: Int, private  val height:Int, title: String) {
         imageBuffer = image.getGraphics()
     }
 
-    fun bindJoypadHandlers(joypadHandlers: JoypadHandlers, toggleDrawBackground: () -> Unit, toggleDrawWindow: () -> Unit, toggleDrawSprites: () -> Unit) {
+    fun bindJoypadHandlers(joypadHandlers: JoypadHandlers, debugHandlers: DebugHandlers) {
         canvas.addKeyListener(object : KeyAdapter() {
             override fun keyPressed(e: KeyEvent?) {
                 when(e?.keyCode) {
@@ -70,12 +71,14 @@ class Window(private val width: Int, private  val height:Int, title: String) {
 
             override fun keyTyped(e: KeyEvent?) {
                 when(e?.keyChar) {
-                    'G' -> toggleDrawBackground()
-                    'g' -> toggleDrawBackground()
-                    'W' -> toggleDrawWindow()
-                    'w' -> toggleDrawWindow()
-                    'S' -> toggleDrawSprites()
-                    's' -> toggleDrawSprites()
+                    'G' -> debugHandlers.toggleDrawBackground()
+                    'g' -> debugHandlers.toggleDrawBackground()
+                    'W' -> debugHandlers.toggleDrawWindow()
+                    'w' -> debugHandlers.toggleDrawWindow()
+                    'S' -> debugHandlers.toggleDrawSprites()
+                    's' -> debugHandlers.toggleDrawSprites()
+                    'O' -> debugHandlers.printOamData()
+                    'o' -> debugHandlers.printOamData()
                 }
             }
         })
