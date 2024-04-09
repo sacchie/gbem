@@ -96,13 +96,11 @@ fun drawScanlineInViewport(
 
     val bgAndWindowDotDataMap = MutableList<Int2?>(VIEWPORT_W) { null }
     val LCDC = memory.get(ADDR_LCDC)
+    val bgAndWindowEnabled = (LCDC and 0x0001) == 1
+    val windowEnabled = (LCDC and 1.shl(5)) > 0
     for (lx in 0 until VIEWPORT_W) {
-        val bgAndWindowEnabled = (LCDC and 0x0001) == 1
         val bgDotData = if (debugParams.drawBackground && bgAndWindowEnabled) getDotDataForBackdround(memory, LCDC, ly, lx) else null
-
-        val windowEnabled = (LCDC and 1.shl(5)) > 0
         val windowDotData = if (debugParams.drawWindow && windowEnabled && bgAndWindowEnabled) getDotDataForWindow(memory, LCDC, ly, lx) else null
-
         bgAndWindowDotDataMap[lx] = windowDotData ?: bgDotData
     }
 
@@ -221,19 +219,21 @@ private fun forEachSpritePixelForScanlineInViewportToBuffer(
     // OAM (0xFE00-FE9F) から ly にあるsprite（上限10個）を取ってきて、描画
     val is8x16Mode = LCDC.and(0b100) > 0
     var drawCount = 0
-    for (oamHeadAddress in 0xFE00..0xFE9F step 4) {
-        val yPosition = memory.get(oamHeadAddress) - 16
-        val xPosition = memory.get(oamHeadAddress + 1) - 8
-        val tileId = memory.get(oamHeadAddress + 2)
-        val attributes = memory.get(oamHeadAddress + 3)
+    for (nthOam in 0 .. 39) {
+        val oamData = memory.getOamData(nthOam)
+        val yPosition = oamData.yPosition
+        val xPosition = oamData.xPosition
+        val tileId = oamData.tileId
+        val attributes = oamData.attributes
         val bgAndWindowOverObj = attributes.and(0b10000000) > 0
         val yFlip = attributes.and(0b01000000) > 0
         val xFlip = attributes.and(0b00100000) > 0
         val OBP = if (attributes.and(0b00010000) > 0) memory.get(ADDR_OBP1) else memory.get(ADDR_OBP0)
+        val ySize = if (is8x16Mode) 16 else 8
         // スプライトの存在範囲y座標：yPosition - yPosition + 7/15
-        if (ly in yPosition until yPosition + if (is8x16Mode) 16 else 8) {
+        if (ly in yPosition until yPosition + ySize) {
             drawCount++
-            val yOnTile = if (yFlip) 15 - (ly - yPosition) else ly - yPosition
+            val yOnTile = if (yFlip) ySize - 1 - (ly - yPosition) else ly - yPosition
             for (xTmp in 0 until 8) {
                 val xOnTile = if (xFlip) 7 - (xTmp) else xTmp
                 val xOnScreen = xPosition + xTmp
@@ -293,7 +293,26 @@ typealias Address = Int
 typealias Int8 = Int
 typealias Int2 = Int
 
+data class OamData(
+    val yPosition: Int8,
+    val xPosition: Int8,
+    val tileId: Int8,
+    val attributes: Int8
+)
+
 interface Memory {
     fun get(addr: Address): Int8
+
     fun getLY(): Int8
+
+    fun getOamData(nth: Int): OamData {
+        assert(nth in 0..39)
+        val oamHeadAddress = 0xFE00 + 4 * nth
+        return OamData(
+            yPosition=get(oamHeadAddress) - 16,
+            xPosition=get(oamHeadAddress + 1) - 8,
+            tileId=get(oamHeadAddress+2),
+            attributes=get(oamHeadAddress+3)
+        )
+    }
 }
