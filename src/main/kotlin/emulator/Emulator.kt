@@ -2,6 +2,7 @@ package emulator
 
 import emulator.cpu.*
 import emulator.cpu.Int8
+import emulator.cpu.op.Op
 import emulator.cpu.op.parse
 import emulator.ppu.*
 
@@ -462,8 +463,11 @@ abstract class Emulation(private val romByteArray: ByteArray) {
         state.register.sp = 0xFFFE
 
         var count = 0L
+        var totalCycleCount = 0L
         while (count++ < maxIterationCount) {
             handleInterrupts(memory, registers, haltState)
+
+            var cycleCount = 8
 
             if (!state.halted) {
                 val pc = registers.getPc()
@@ -481,19 +485,21 @@ System.err.println(
                 }
                 */
 
-
                 //  CPUがstateを更新
                 op.run(registers, memory, haltState)
+                cycleCount = op.getCycleCount()
             }
 
             // emulator.Timer
-            val CYCLE_COUNT = 8 // FIXME とりあえず平均値近くで設定しているだけ（2-byte instructionを想定）
-            if (timer.tick(CYCLE_COUNT)) {
+            if (timer.tick(cycleCount)) {
                 memory.enableInterruptFlag(0b100)
             }
 
+            totalCycleCount += cycleCount
+
             //  PPUがstate.memory.VRAM領域を見て画面を更新
-            if (count % 200L == 0L) {
+            if (totalCycleCount >= 456L) {
+                totalCycleCount = totalCycleCount % 456L
                 if (state.memory.LY == 144) {
                     memory.enableInterruptFlag(0b1)
                 }

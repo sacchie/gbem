@@ -989,3 +989,8 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
         }
     }
 }
+
+fun Op.getCycleCount() = when (this) {
+    is OpLdR8R8 -> 4
+    else -> 8
+}
