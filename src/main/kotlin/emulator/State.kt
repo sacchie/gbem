@@ -1,7 +1,7 @@
 package emulator
 import emulator.cpu.Int16
+import emulator.cpu.Int8
 import emulator.ppu.DebugParams
-import emulator.ppu.Int8
 
 data class RegisterData(
     var pc: Int16 = 0,
@@ -33,6 +33,7 @@ data class MemoryData(
     var LY: Int8 = 0,
     var IF: Int8 = 0,
     var IE: Int8 = 0,
+    var LYC: Int8 = 0,
 ) {
     companion object {
         val HRAM_RANGE = 0xFF80..0xFFFE

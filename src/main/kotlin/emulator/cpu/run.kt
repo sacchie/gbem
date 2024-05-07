@@ -362,6 +362,20 @@ fun handleInterrupts(memory: Memory, regs: Registers, haltState: HaltState) {
             regs.setIme(false)
             haltState.setHalted(false)
         }
+    } else if (0 < getIE().and(0b10) && 0 < getIF().and(0b10)) {
+        if (haltState.getHalted()) {
+            regs.incPc()
+            haltState.setHalted(false)
+        }
+
+        if (regs.getIme()) {
+            setIF(getIF().and(0b11111101))
+            regs.setSp(regs.getSp() - 2)
+            memory.set16(regs.getSp(), regs.getPc())
+            regs.setPc(0x48)
+            regs.setIme(false)
+            haltState.setHalted(false)
+        }
     } else if (0 < getIE().and(0b100) && 0 < getIF().and(0b100)) {
         if (haltState.getHalted()) {
             regs.incPc()

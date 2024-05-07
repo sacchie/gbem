@@ -264,10 +264,13 @@ fun makeMemory(
             in 0xFF10..0xFF26 -> {} /* TODO audio */
             in 0xFF30 .. 0xFF3F -> {} /* TODO audio */
             0xFF40 -> memory.LCDC = int8
-            0xFF41 -> memory.STAT = int8
+            0xFF41 -> memory.STAT = int8.and(0b11111000)
             0xFF42 -> memory.SCY = int8
             0xFF43 -> memory.SCX = int8
-            0xFF45 -> {} /* TODO audio */
+            0xFF45 -> {
+                assert(int8 < 154)
+                memory.LYC = int8
+            }
             0xFF46 -> {
                 // OAM DMA Transfer
                 val startAddr = int8 shl 8
@@ -503,6 +506,13 @@ System.err.println(
 
                 if (state.memory.LY == 154) {
                     state.memory.LY = 0
+                }
+
+                if (state.memory.LYC == state.memory.LY) {
+                    state.memory.STAT = state.memory.STAT.or(0b100)
+                    if (state.memory.STAT.and(0b1000000) != 0) {
+                        memory.enableInterruptFlag(0b10)
+                    }
                 }
             }
 
