@@ -1,10 +1,11 @@
 package emulator
 
 import emulator.cpu.*
-import emulator.cpu.Int8
-import emulator.cpu.op.Op
 import emulator.cpu.op.parse
-import emulator.ppu.*
+import emulator.ppu.Address
+import emulator.ppu.DebugParams
+import emulator.ppu.LCDColor
+import emulator.ppu.drawScanlineInViewport
 
 const val ADDR_IF = 0xFF0F
 
@@ -467,12 +468,9 @@ abstract class Emulation(private val romByteArray: ByteArray) {
         while (count++ < maxIterationCount) {
             handleInterrupts(memory, registers, haltState)
 
-            var cycleCount = 8
-
-            if (!state.halted) {
+            val cycleCount = if (!state.halted) {
                 val pc = registers.getPc()
                 val op = parse(memory, pc)
-
                 /*
 if (count > 1000000L) {
 System.err.println(
@@ -484,10 +482,10 @@ System.err.println(
 )
                 }
                 */
-
                 //  CPUがstateを更新
                 op.run(registers, memory, haltState)
-                cycleCount = op.getCycleCount()
+            } else {
+                4
             }
 
             // emulator.Timer

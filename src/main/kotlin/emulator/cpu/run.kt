@@ -81,27 +81,33 @@ fun Registers.r8(r: RegEnum8) = when (r) {
         override fun get(): Int8 = getB()
         override fun set(x: Int8) = setB(x)
     }
+
     RegEnum8.C -> object : Place<Int8> {
         override fun get(): Int8 = getC()
         override fun set(x: Int8) = setC(x)
     }
+
     RegEnum8.D -> object : Place<Int8> {
         override fun get(): Int8 = getD()
         override fun set(x: Int8) = setD(x)
 
     }
+
     RegEnum8.E -> object : Place<Int8> {
         override fun get(): Int8 = getE()
         override fun set(x: Int8) = setE(x)
     }
+
     RegEnum8.H -> object : Place<Int8> {
         override fun get(): Int8 = getH()
         override fun set(x: Int8) = setH(x)
     }
+
     RegEnum8.L -> object : Place<Int8> {
         override fun get(): Int8 = getL()
         override fun set(x: Int8) = setL(x)
     }
+
     RegEnum8.A -> a()
 }
 
@@ -110,19 +116,23 @@ fun Registers.r16(r: RegEnum16) = when (r) {
         override fun get(): Int16 = getAf()
         override fun set(x: Int16) = setAf(x)
     }
+
     RegEnum16.BC -> object : Place<Int16> {
         override fun get(): Int16 = getBc()
         override fun set(x: Int16) = setBc(x)
     }
+
     RegEnum16.DE -> object : Place<Int16> {
         override fun get(): Int16 = getDe()
         override fun set(x: Int16) = setDe(x)
     }
+
     RegEnum16.HL -> object : Place<Int16> {
         override fun get(): Int16 = getHl()
         override fun set(x: Int16) = setHl(x)
 
     }
+
     RegEnum16.SP -> object : Place<Int16> {
         override fun get(): Int16 = getSp()
         override fun set(x: Int16) = setSp(x)
@@ -324,7 +334,7 @@ fun opRet(regs: Registers, memory: Memory) {
     regs.incCallDepthForDebug(-1)
 }
 
-fun runIfConditionSatisfied(regs: Registers, f: ConditionalJumpFlag, thenDo: () -> Unit, elseDo: () -> Unit) {
+fun runIfConditionSatisfied(regs: Registers, f: ConditionalJumpFlag, thenDo: () -> Int, elseDo: () -> Int): Int =
     if (f == ConditionalJumpFlag.NZ && !regs.isZeroOn()
         || f == ConditionalJumpFlag.Z && regs.isZeroOn()
         || f == ConditionalJumpFlag.NC && !regs.isCarryOn()
@@ -334,7 +344,6 @@ fun runIfConditionSatisfied(regs: Registers, f: ConditionalJumpFlag, thenDo: () 
     } else {
         elseDo()
     }
-}
 
 interface HaltState {
     fun setHalted(b: Boolean)
@@ -393,122 +402,147 @@ fun handleInterrupts(memory: Memory, regs: Registers, haltState: HaltState) {
     }
 }
 
-fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
+/**
+ * @return cycle count
+ */
+fun Op.run(regs: Registers, memory: Memory, haltState: HaltState): Int =
     when (this) {
         is OpLdR8R8 -> {
             val yVal = regs.r8(y).get()
             regs.r8(x).set(yVal)
             regs.incPc()
+            4
         }
 
         is OpLdR8D8 -> {
             regs.r8(r).set(d)
             regs.incPc(2)
+            8
         }
 
         is OpLdR8HL -> {
             regs.r8(r).set(memory.get8(regs.getHl()))
             regs.incPc()
+            8
         }
 
         is OpLdHLR8 -> {
             memory.set8(regs.getHl(), regs.r8(r).get())
             regs.incPc()
+            8
         }
 
         is OpLdHLD8 -> {
             memory.set8(regs.getHl(), d)
             regs.incPc(2)
+            12
         }
 
         is OpLdABC -> {
             regs.setA(memory.get8(regs.getBc()))
             regs.incPc()
+            8
         }
 
         is OpLdADE -> {
             regs.setA(memory.get8(regs.getDe()))
             regs.incPc()
+            8
         }
 
         is OpLdAD16 -> {
             regs.setA(memory.get8(d))
             regs.incPc(3)
+            16
         }
 
         is OpLdBCA -> {
             memory.set8(regs.getBc(), regs.getA())
             regs.incPc()
+            8
         }
 
         is OpLdDEA -> {
             memory.set8(regs.getDe(), regs.getA())
             regs.incPc()
+            8
         }
 
         is OpLdD16A -> {
             memory.set8(d, regs.getA())
             regs.incPc(3)
+            16
         }
 
         is OpLdFromIoPort -> {
             regs.setA(memory.get8(0xFF00 + d))
             regs.incPc(2)
+            12
         }
 
         is OpLdToIoPort -> {
             memory.set8(0xFF00 + d, regs.getA())
             regs.incPc(2)
+            12
         }
 
         is OpLdFromIoPortC -> {
             regs.setA(memory.get8(0xFF00 + regs.getC()))
             regs.incPc()
+            8
         }
 
         is OpLdToIoPortC -> {
             memory.set8(0xFF00 + regs.getC(), regs.getA())
             regs.incPc()
+            8
         }
 
         is OpLdiHLA -> {
             memory.set8(regs.getHl(), regs.getA())
             regs.updateHl { (it + 1) % 0x10000 }
             regs.incPc()
+            8
         }
 
         is OpLdiAHL -> {
             regs.setA(memory.get8(regs.getHl()))
             regs.updateHl { (it + 1) % 0x10000 }
             regs.incPc()
+            8
         }
 
         is OpLddHLA -> {
             memory.set8(regs.getHl(), regs.getA())
             regs.updateHl { if (it == 0) 0xFFFF else it - 1 }
             regs.incPc()
+            8
         }
 
         is OpLddAHL -> {
             regs.setA(memory.get8(regs.getHl()))
             regs.updateHl { if (it == 0) 0xFFFF else it - 1 }
             regs.incPc()
+            8
         }
 
         is OpLdR16D16 -> {
             assert(r == RegEnum16.BC || r == RegEnum16.DE || r == RegEnum16.HL || r == RegEnum16.SP)
             regs.r16(r).set(d)
             regs.incPc(3)
+            12
         }
 
         is OpLdD16SP -> {
             memory.set16(d, regs.getSp())
             regs.incPc(3)
+            20
         }
 
         is OpLdSPHL -> {
             regs.setSp(regs.getHl())
             regs.incPc()
+            8
         }
 
         is OpPushR16 -> {
@@ -516,6 +550,7 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
             regs.updateSp { if (it < 2) it + 0x10000 - 2 else it - 2 }
             memory.set16(regs.getSp(), regs.r16(r).get())
             regs.incPc()
+            16
         }
 
         is OpPopR16 -> {
@@ -525,146 +560,175 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
             regs.r16(r).set(setValue)
             regs.updateSp { (it + 2) % 0x10000 }
             regs.incPc()
+            12
         }
 
         is OpAddAR8 -> {
             opAddA(regs, regs.r8(r).get())
             regs.incPc()
+            4
         }
 
         is OpAddAD8 -> {
             opAddA(regs, d)
             regs.incPc(2)
+            8
         }
 
         is OpAddAHL -> {
             opAddA(regs, memory.get8(regs.getHl()))
             regs.incPc()
+            8
         }
 
         is OpAdcAR8 -> {
             opAddA(regs, regs.r8(r).get(), if (regs.isCarryOn()) 1 else 0)
             regs.incPc()
+            4
         }
 
         is OpAdcAD8 -> {
             opAddA(regs, d, if (regs.isCarryOn()) 1 else 0)
             regs.incPc(2)
+            8
         }
 
         is OpAdcAHL -> {
             opAddA(regs, memory.get8(regs.getHl()), if (regs.isCarryOn()) 1 else 0)
             regs.incPc()
+            8
         }
 
         is OpSubAR8 -> {
             opSubA(regs, regs.r8(r).get())
             regs.incPc()
+            4
         }
 
         is OpSubAD8 -> {
             opSubA(regs, d)
             regs.incPc(2)
+            8
         }
 
         is OpSubAHL -> {
             opSubA(regs, memory.get8(regs.getHl()))
             regs.incPc()
+            8
         }
 
         is OpSbcAR8 -> {
             opSubA(regs, regs.r8(r).get(), if (regs.isCarryOn()) 1 else 0)
             regs.incPc()
+            4
         }
 
         is OpSbcAD8 -> {
             opSubA(regs, d, if (regs.isCarryOn()) 1 else 0)
             regs.incPc(2)
+            8
         }
 
         is OpSbcAHL -> {
             opSubA(regs, memory.get8(regs.getHl()), if (regs.isCarryOn()) 1 else 0)
             regs.incPc()
+            8
         }
 
         is OpAndAR8 -> {
             opAndA(regs, regs.r8(r).get())
             regs.incPc()
+            4
         }
 
         is OpAndAD8 -> {
             opAndA(regs, d)
             regs.incPc(2)
+            8
         }
 
         is OpAndAHL -> {
             opAndA(regs, memory.get8(regs.getHl()))
             regs.incPc()
+            8
         }
 
         is OpXorAR8 -> {
             opXorA(regs, regs.r8(r).get())
             regs.incPc()
+            4
         }
 
         is OpXorAD8 -> {
             opXorA(regs, d)
             regs.incPc(2)
+            8
         }
 
         is OpXorAHL -> {
             opXorA(regs, memory.get8(regs.getHl()))
             regs.incPc()
+            8
         }
 
         is OpOrAR8 -> {
             opOrA(regs, regs.r8(r).get())
             regs.incPc()
+            4
         }
 
         is OpOrAD8 -> {
             opOrA(regs, d)
             regs.incPc(2)
+            8
         }
 
         is OpOrAHL -> {
             opOrA(regs, memory.get8(regs.getHl()))
             regs.incPc()
+            8
         }
 
         is OpCpAR8 -> {
             opCpA(regs, regs.r8(r).get())
             regs.incPc()
+            4
         }
 
         is OpCpAD8 -> {
             opCpA(regs, d)
             regs.incPc(2)
+            8
         }
 
         is OpCpAHL -> {
             opCpA(regs, memory.get8(regs.getHl()))
             regs.incPc()
+            8
         }
 
         is OpIncR8 -> {
             opInc(regs, regs.r8(r))
             regs.incPc()
+            4
         }
 
         is OpIncHL -> {
             opInc(regs, memory.asPlace8(regs.getHl()))
             regs.incPc()
+            12
         }
 
         is OpDecR8 -> {
             opDec(regs, regs.r8(r))
             regs.incPc()
+            4
         }
 
         is OpDecHL -> {
             opDec(regs, memory.asPlace8(regs.getHl()))
             regs.incPc()
+            12
         }
 
         is OpDaa -> {
@@ -687,6 +751,7 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
             regs.setCarry(corr.and(0x60) != 0)
             regs.setA(aNew.and(0xFF))
             regs.incPc()
+            4
         }
 
         is OpCpl -> {
@@ -694,6 +759,7 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
             regs.setSubtraction(true)
             regs.setHalfCarry(true)
             regs.incPc()
+            4
         }
 
         is OpAddHLR16 -> {
@@ -705,6 +771,7 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
             regs.setCarry(0x10000 <= hlNew)
             regs.setHalfCarry(0xFFF < hlOld.and(0xFFF) + regs.r16(r).get().and(0xFFF))
             regs.incPc()
+            8
         }
 
         is OpIncR16 -> {
@@ -712,6 +779,7 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
             val reg16 = regs.r16(r)
             reg16.set((reg16.get() + 1) % 0x10000)
             regs.incPc()
+            8
         }
 
         is OpDecR16 -> {
@@ -719,6 +787,7 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
             val reg16 = regs.r16(r)
             reg16.set(((reg16.get() - 1) + 0x10000) % 0x10000)
             regs.incPc()
+            8
         }
 
         is OpAddSpD8 -> {
@@ -731,6 +800,7 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
             regs.setHalfCarry(0xF < (spOld.and(0xF) + d.and(0xF)))
             regs.setCarry(0xFF < (spOld.and(0xFF) + d.and(0xFF)))
             regs.incPc(2)
+            16
         }
 
         is OpLdHLSpAndD8 -> {
@@ -743,70 +813,83 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
             regs.setHalfCarry(0xF < (spVal.and(0xF) + d.and(0xF)))
             regs.setCarry(0xFF < (spVal.and(0xFF) + d.and(0xFF)))
             regs.incPc(2)
+            12
         }
 
         is OpRlcA -> {
             opRlc(regs, regs.a(), true)
             regs.incPc()
+            4
         }
 
         is OpRlA -> {
             opRl(regs, regs.a(), true)
             regs.incPc()
+            4
         }
 
         is OpRrcA -> {
             opRrc(regs, regs.a(), true)
             regs.incPc()
+            4
         }
 
         is OpRrA -> {
             opRr(regs, regs.a(), true)
             regs.incPc()
+            4
         }
 
         is OpRlcR8 -> {
             opRlc(regs, regs.r8(r), false)
             regs.incPc(2)
+            8
         }
 
         is OpRlcHL -> {
             val addr = regs.getHl()
             opRlc(regs, memory.asPlace8(addr), false)
             regs.incPc(2)
+            16
         }
 
         is OpRlR8 -> {
             opRl(regs, regs.r8(r), false)
             regs.incPc(2)
+            8
         }
 
         is OpRlHL -> {
             val addr = regs.getHl()
             opRl(regs, memory.asPlace8(addr), false)
             regs.incPc(2)
+            16
         }
 
         is OpRrcR8 -> {
             opRrc(regs, regs.r8(r), false)
             regs.incPc(2)
+            8
         }
 
         is OpRrcHL -> {
             val addr = regs.getHl()
             opRrc(regs, memory.asPlace8(addr), false)
             regs.incPc(2)
+            16
         }
 
         is OpRrR8 -> {
             opRr(regs, regs.r8(r), false)
             regs.incPc(2)
+            8
         }
 
         is OpRrHL -> {
             val addr = regs.getHl()
             opRr(regs, memory.asPlace8(addr), false)
             regs.incPc(2)
+            16
         }
 
         is OpSlaR8 -> {
@@ -820,6 +903,7 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
             regs.setHalfCarry(false)
             regs.setCarry(0xFF < vNew)
             regs.incPc(2)
+            8
         }
 
         is OpSlaHL -> {
@@ -832,66 +916,79 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
             regs.setHalfCarry(false)
             regs.setCarry(0xFF < vNew)
             regs.incPc(2)
+            16
         }
 
         is OpSwapR8 -> {
             opSwap(regs, regs.r8(r))
             regs.incPc(2)
+            8
         }
 
         is OpSwapHL -> {
             opSwap(regs, memory.asPlace8(regs.getHl()))
             regs.incPc(2)
+            16
         }
 
         is OpSraR8 -> {
             opSra(regs, regs.r8(r))
             regs.incPc(2)
+            8
         }
 
         is OpSraHL -> {
             opSra(regs, memory.asPlace8(regs.getHl()))
             regs.incPc(2)
+            16
         }
 
         is OpSrlR8 -> {
             opSrl(regs, regs.r8(r))
             regs.incPc(2)
+            8
         }
 
         is OpSrlHL -> {
             opSrl(regs, memory.asPlace8(regs.getHl()))
             regs.incPc(2)
+            16
         }
 
         is OpBitNR8 -> {
             opBitN(n, regs, { regs.r8(r).get() })
             regs.incPc(2)
+            8
         }
 
         is OpBitNHL -> {
             opBitN(n, regs, { memory.get8(regs.getHl()) })
             regs.incPc(2)
+            12
         }
 
         is OpSetNR8 -> {
             opSetN(n, regs.r8(r))
             regs.incPc(2)
+            8
         }
 
         is OpSetNHL -> {
             opSetN(n, memory.asPlace8(regs.getHl()))
             regs.incPc(2)
+            16
         }
 
         is OpResNR8 -> {
             opResN(n, regs.r8(r))
             regs.incPc(2)
+            8
         }
 
         is OpResNHL -> {
             opResN(n, memory.asPlace8(regs.getHl()))
             regs.incPc(2)
+            16
         }
 
         is OpCcf -> {
@@ -899,6 +996,7 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
             regs.setHalfCarry(false)
             regs.setSubtraction(false)
             regs.incPc()
+            4
         }
 
         is OpScf -> {
@@ -906,14 +1004,17 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
             regs.setHalfCarry(false)
             regs.setSubtraction(false)
             regs.incPc()
+            4
         }
 
         is OpNop -> {
             regs.incPc()
+            4
         }
 
         is OpHalt -> {
             haltState.setHalted(true)
+            4
         }
 
         is OpStop -> {
@@ -924,73 +1025,91 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState) {
         is OpDi -> {
             regs.setIme(false)
             regs.incPc()
+            4
         }
 
         is OpEi -> {
             regs.setIme(true)
             regs.incPc()
+            4
         }
 
         is OpJpN16 -> {
             regs.setPc(n)
+            16
         }
 
         is OpJpHl -> {
             regs.setPc(regs.getHl())
+            4
         }
 
         is OpJpFNn -> {
             runIfConditionSatisfied(regs, f, {
                 regs.setPc(n)
-            }) {
+                16
+            }, {
                 regs.incPc(3)
-            }
+                12
+            })
         }
 
         is OpJrD8 -> {
             regs.setPc(2 + regs.getPc() + (d.xor(0x80) - 0x80))
+            12
         }
 
         is OpJrFD8 -> {
             runIfConditionSatisfied(regs, f, {
                 regs.setPc(2 + regs.getPc() + (d.xor(0x80) - 0x80))
-            }) {
+                12
+            }, {
                 regs.incPc(2)
-            }
+                8
+            })
         }
 
         is OpCallN16 -> {
             opCall(regs, memory, n)
+            24
         }
 
         is OpCallFN16 -> {
-            runIfConditionSatisfied(regs, f, { opCall(regs, memory, n) }) {
+            runIfConditionSatisfied(regs, f, {
+                opCall(regs, memory, n)
+                24
+            }, {
                 regs.incPc(3)
-            }
+                12
+            })
         }
 
         is OpRet -> {
             opRet(regs, memory)
+            16
         }
 
         is OpRetF -> {
-            runIfConditionSatisfied(regs, f, { opRet(regs, memory) }) {
+            runIfConditionSatisfied(regs, f, {
+                opRet(regs, memory)
+                20
+            }, {
                 regs.incPc()
-            }
+                8
+            })
         }
 
         is OpRetI -> {
             regs.setIme(true)
             opRet(regs, memory)
+            16
         }
 
         is OpRstN8 -> {
             opRst(regs, memory, n)
+            16
         }
-    }
-}
 
-fun Op.getCycleCount() = when (this) {
-    is OpLdR8R8 -> 4
-    else -> 8
-}
+        else -> throw UnsupportedOperationException()
+    }
+
