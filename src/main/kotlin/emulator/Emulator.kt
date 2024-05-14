@@ -422,7 +422,7 @@ abstract class Emulation(private val romByteArray: ByteArray) {
         }
     }
 
-    fun run(maxIterationCount: Long = Long.MAX_VALUE) {
+    fun run(maxLoopCount: Long = Long.MAX_VALUE) {
         val registers = makeRegisters(state.register)
         val memory = makeMemory(romByteArray, state.memory, state.timer, state.p1, { on -> state.ramEnable = on })
         val timer = makeTimer(state.timer)
@@ -463,9 +463,9 @@ abstract class Emulation(private val romByteArray: ByteArray) {
         state.register.pc = 0x100
         state.register.sp = 0xFFFE
 
-        var count = 0L
+        var loopCount = 0L
         var totalCycleCount = 0L
-        while (count++ < maxIterationCount) {
+        while (loopCount++ < maxLoopCount) {
             handleInterrupts(memory, registers, haltState)
 
             val cycleCount = if (!state.halted) {
