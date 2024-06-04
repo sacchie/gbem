@@ -2,6 +2,7 @@ package emulator
 import emulator.cpu.Int16
 import emulator.cpu.Int8
 import emulator.ppu.DebugParams
+import emulator.ppu.PpuMode
 
 data class RegisterData(
     var pc: Int16 = 0,
@@ -60,6 +61,7 @@ data class State(
     val register: RegisterData = RegisterData(),
     val memory: MemoryData = MemoryData(),
     val timer: TimerData = TimerData(),
+    var ppuMode: PpuMode = PpuMode.MODE2,
     var halted: Boolean = false,
     val p1: P1 = P1(),
     var ramEnable: Boolean = false, /* currently only for MBC1 (cartridgeType = $03) */

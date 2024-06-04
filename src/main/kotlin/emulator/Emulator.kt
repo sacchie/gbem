@@ -1,11 +1,9 @@
 package emulator
 
 import emulator.cpu.*
+import emulator.cpu.Int8
 import emulator.cpu.op.parse
-import emulator.ppu.Address
-import emulator.ppu.DebugParams
-import emulator.ppu.LCDColor
-import emulator.ppu.drawScanlineInViewport
+import emulator.ppu.*
 
 const val ADDR_IF = 0xFF0F
 
@@ -495,28 +493,41 @@ System.err.println(
 
             totalCycleCount += cycleCount
 
-            //  PPUがstate.memory.VRAM領域を見て画面を更新
-            if (totalCycleCount >= 456L) {
-                totalCycleCount = totalCycleCount % 456L
-                if (state.memory.LY == 144) {
-                    memory.enableInterruptFlag(0b1)
-                }
-
-                startDrawingScanLine(state.memory.LY, state.ppuDebugParams) {
-                    drawScanlineInViewport(memory, state.memory.LY, state.ppuDebugParams, it)
-                }
-
+            fun incrementLY () {
                 state.memory.LY++
-
-                if (state.memory.LY == 154) {
-                    state.memory.LY = 0
-                }
-
                 if (state.memory.LYC == state.memory.LY) {
                     state.memory.STAT = state.memory.STAT.or(0b100)
                     if (state.memory.STAT.and(0b1000000) != 0) {
                         memory.enableInterruptFlag(0b10)
                     }
+                }
+                totalCycleCount %= 456L
+            }
+
+            // TODO Mode2, 3の間はOAMにアクセスできない
+            if (state.ppuMode == PpuMode.MODE2 && totalCycleCount >= 80L) {
+                state.ppuMode = PpuMode.MODE3
+            } else if (state.ppuMode == PpuMode.MODE3 && totalCycleCount >= 80L + 170L) {
+                state.ppuMode = PpuMode.MODE0
+                startDrawingScanLine(state.memory.LY, state.ppuDebugParams) {
+                    drawScanlineInViewport(memory, state.memory.LY, state.ppuDebugParams, it)
+                }
+            } else if (state.ppuMode == PpuMode.MODE0 && totalCycleCount >= 80L + 170L + 206L) {
+                incrementLY()
+
+                if (state.memory.LY == 144) {
+                    state.ppuMode = PpuMode.MODE1 // VBLANK
+                    memory.enableInterruptFlag(0b1)
+                } else {
+                    state.ppuMode = PpuMode.MODE2
+                }
+
+            } else if (state.ppuMode == PpuMode.MODE1 && totalCycleCount >= 456L) {
+                incrementLY()
+
+                if (state.memory.LY == 154) {
+                    state.ppuMode = PpuMode.MODE2
+                    state.memory.LY = 0
                 }
             }
 
