@@ -133,6 +133,15 @@ interface Memory : emulator.cpu.Memory, emulator.ppu.Memory {
 fun Memory.enableInterruptFlag(flag: Int8) = set8(ADDR_IF, get8(ADDR_IF) or flag)
 
 
+interface LcdStatus {
+    fun getLycIntSelect(): Boolean
+    fun setLycIntSelect(selected: Boolean)
+    fun getModeSelect(ppuMode: PpuMode): Boolean
+    fun setModeSelect(ppuMode: PpuMode, selected: Boolean)
+    fun getLycEqualsLy(): Boolean
+    fun getPpuMode(): PpuMode
+}
+
 // TODO
 // - MBC1
 // - ROM size = 32 KiB, # of rom banks = 2 (no banking)
@@ -146,7 +155,8 @@ fun makeMemory(
     memory: MemoryData,
     timer: TimerData,
     p1: P1,
-    setRamEnable: (on: Boolean) -> Unit
+    setRamEnable: (on: Boolean) -> Unit,
+    lcdStatus: LcdStatus,
 ) = object : Memory {
     override fun getCartridgeType() = romByteArray[0x0147].toInt() and 0xFF
     override fun getRomSize() = romByteArray[0x0148].toInt() and 0xFF
@@ -162,6 +172,7 @@ fun makeMemory(
             }
             memory.externalRam[addr - 0xA000]
         }
+
         in MemoryData.HRAM_RANGE -> memory.hram[addr - MemoryData.HRAM_RANGE.first]
         in MemoryData.OAM_RANGE -> memory.oam[addr - MemoryData.OAM_RANGE.first]
         0xFF00 -> {
@@ -180,7 +191,24 @@ fun makeMemory(
         0xFF12 -> 0 /* TODO audio */
         0xFF17 -> 0 /* TODO audio */
         0xFF40 -> memory.LCDC
-        0xFF41 -> memory.STAT
+        0xFF41 ->
+            (when (lcdStatus.getPpuMode()) {
+                PpuMode.MODE0 -> 0
+                PpuMode.MODE1 -> 1
+                PpuMode.MODE2 -> 2
+                PpuMode.MODE3 -> 3
+            }).or(
+                if (lcdStatus.getLycEqualsLy()) 1.shl(2) else 0
+            ).or(
+                if (lcdStatus.getModeSelect(PpuMode.MODE0)) 1.shl(3) else 0
+            ).or(
+                if (lcdStatus.getModeSelect(PpuMode.MODE1)) 1.shl(4) else 0
+            ).or(
+                if (lcdStatus.getModeSelect(PpuMode.MODE2)) 1.shl(5) else 0
+            ).or(
+                if (lcdStatus.getLycIntSelect()) 1.shl(6) else 0
+            )
+
         0xFF42 -> memory.SCY
         0xFF43 -> memory.SCX
         0xFF44 -> memory.LY
@@ -230,6 +258,7 @@ fun makeMemory(
                     setRamEnable(int8 == 0xA)
                 }
             }
+
             0x2000 -> {} /* just ignore, implementaion required for ROM banking */
             0x4000 -> {} /* just ignore, implementaion required for ROM banking */
 
@@ -262,15 +291,22 @@ fun makeMemory(
             0xFF07 -> setTac(int8)
             0xFF0F -> memory.IF = int8
             in 0xFF10..0xFF26 -> {} /* TODO audio */
-            in 0xFF30 .. 0xFF3F -> {} /* TODO audio */
+            in 0xFF30..0xFF3F -> {} /* TODO audio */
             0xFF40 -> memory.LCDC = int8
-            0xFF41 -> memory.STAT = int8.and(0b11111000)
+            0xFF41 -> {
+                lcdStatus.setModeSelect(PpuMode.MODE0, int8.and(1.shl(3)) != 0)
+                lcdStatus.setModeSelect(PpuMode.MODE1, int8.and(1.shl(4)) != 0)
+                lcdStatus.setModeSelect(PpuMode.MODE2, int8.and(1.shl(5)) != 0)
+                lcdStatus.setLycIntSelect(int8.and(1.shl(6)) != 0)
+            }
+
             0xFF42 -> memory.SCY = int8
             0xFF43 -> memory.SCX = int8
             0xFF45 -> {
                 assert(int8 < 154)
                 memory.LYC = int8
             }
+
             0xFF46 -> {
                 // OAM DMA Transfer
                 val startAddr = int8 shl 8
@@ -366,7 +402,11 @@ fun makeTimer(timer: TimerData): Timer = object : Timer() {
 abstract class Emulation(private val romByteArray: ByteArray) {
     val state = State()
 
-    abstract fun startDrawingScanLine(ly: Int,  ppuDebugParams: DebugParams, drawScanLine: (drawPixel: (x: Int, y: Int, color: LCDColor) -> Unit) -> Unit)
+    abstract fun startDrawingScanLine(
+        ly: Int,
+        ppuDebugParams: DebugParams,
+        drawScanLine: (drawPixel: (x: Int, y: Int, color: LCDColor) -> Unit) -> Unit
+    )
 
     fun getJoypadHandlers(): JoypadHandlers {
         fun setDPad(bit: Int, pressed: Boolean) {
@@ -412,7 +452,7 @@ abstract class Emulation(private val romByteArray: ByteArray) {
             }
 
             override fun printOamData() {
-                val memory = makeMemory(romByteArray, state.memory, state.timer, state.p1, {  })
+                val memory = makeMemory(romByteArray, state.memory, state.timer, state.p1, { on -> }, makeLcdStatus())
                 for (i in 0..39) {
                     println("$i OAM data: ${memory.getOamData(i)}")
                 }
@@ -420,9 +460,34 @@ abstract class Emulation(private val romByteArray: ByteArray) {
         }
     }
 
+    fun makeLcdStatus() = object : LcdStatus {
+        override fun getLycIntSelect() = state.lcdStatusData.lycIntSelected
+
+        override fun setLycIntSelect(selected: Boolean) {
+            state.lcdStatusData.lycIntSelected = selected
+        }
+
+        override fun getModeSelect(ppuMode: PpuMode) = state.lcdStatusData.modeSelected[ppuMode]!!
+
+        override fun setModeSelect(ppuMode: PpuMode, selected: Boolean) {
+            state.lcdStatusData.modeSelected[ppuMode] = selected
+        }
+
+        override fun getLycEqualsLy() = state.memory.LYC == state.memory.LY
+
+        override fun getPpuMode() = state.ppuMode
+    }
+
     fun run(maxLoopCount: Long = Long.MAX_VALUE) {
         val registers = makeRegisters(state.register)
-        val memory = makeMemory(romByteArray, state.memory, state.timer, state.p1, { on -> state.ramEnable = on })
+        val memory = makeMemory(
+            romByteArray,
+            state.memory,
+            state.timer,
+            state.p1,
+            { on -> state.ramEnable = on },
+            makeLcdStatus()
+        )
         val timer = makeTimer(state.timer)
 
         val haltState = object : HaltState {
@@ -493,13 +558,10 @@ System.err.println(
 
             totalCycleCount += cycleCount
 
-            fun incrementLY () {
+            fun incrementLY() {
                 state.memory.LY++
-                if (state.memory.LYC == state.memory.LY) {
-                    state.memory.STAT = state.memory.STAT.or(0b100)
-                    if (state.memory.STAT.and(0b1000000) != 0) {
-                        memory.enableInterruptFlag(0b10)
-                    }
+                if (state.memory.LYC == state.memory.LY && state.lcdStatusData.lycIntSelected) {
+                    memory.enableInterruptFlag(0b10)
                 }
                 totalCycleCount %= 456L
             }

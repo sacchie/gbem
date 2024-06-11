@@ -1,4 +1,5 @@
 package emulator
+
 import emulator.cpu.Int16
 import emulator.cpu.Int8
 import emulator.ppu.DebugParams
@@ -23,7 +24,6 @@ data class MemoryData(
     val oam: MutableList<Int8> = MutableList(OAM_RANGE.count()) { 0 },
 
     var LCDC: Int8 = 0,
-    var STAT: Int8 = 0,
     var BGP: Int8 = 0,
     var OBP0: Int8 = 0,
     var OBP1: Int8 = 0,
@@ -57,6 +57,15 @@ data class P1(
     var selectButtons: Boolean = false,
 )
 
+data class LcdStatusData(
+    var lycIntSelected: Boolean = false,
+    val modeSelected: MutableMap<PpuMode, Boolean> = mutableMapOf(
+        PpuMode.MODE0 to false,
+        PpuMode.MODE1 to false,
+        PpuMode.MODE2 to false
+    ),
+)
+
 data class State(
     val register: RegisterData = RegisterData(),
     val memory: MemoryData = MemoryData(),
@@ -65,5 +74,6 @@ data class State(
     var halted: Boolean = false,
     val p1: P1 = P1(),
     var ramEnable: Boolean = false, /* currently only for MBC1 (cartridgeType = $03) */
+    val lcdStatusData: LcdStatusData = LcdStatusData(),
     val ppuDebugParams: DebugParams = DebugParams(drawBackground = true, drawWindow = true, drawSprites = true)
 )
