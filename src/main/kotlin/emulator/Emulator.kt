@@ -571,6 +571,9 @@ System.err.println(
                 state.ppuMode = PpuMode.MODE3
             } else if (state.ppuMode == PpuMode.MODE3 && totalCycleCount >= 80L + 170L) {
                 state.ppuMode = PpuMode.MODE0
+                if (state.lcdStatusData.modeSelected[PpuMode.MODE0]!!) {
+                    memory.enableInterruptFlag(0b10)
+                }
                 startDrawingScanLine(state.memory.LY, state.ppuDebugParams) {
                     drawScanlineInViewport(memory, state.memory.LY, state.ppuDebugParams, it)
                 }
@@ -580,15 +583,23 @@ System.err.println(
                 if (state.memory.LY == 144) {
                     state.ppuMode = PpuMode.MODE1 // VBLANK
                     memory.enableInterruptFlag(0b1)
+                    if (state.lcdStatusData.modeSelected[PpuMode.MODE1]!!) {
+                        memory.enableInterruptFlag(0b10)
+                    }
                 } else {
                     state.ppuMode = PpuMode.MODE2
+                    if (state.lcdStatusData.modeSelected[PpuMode.MODE2]!!) {
+                        memory.enableInterruptFlag(0b10)
+                    }
                 }
-
             } else if (state.ppuMode == PpuMode.MODE1 && totalCycleCount >= 456L) {
                 incrementLY()
 
                 if (state.memory.LY == 154) {
                     state.ppuMode = PpuMode.MODE2
+                    if (state.lcdStatusData.modeSelected[PpuMode.MODE2]!!) {
+                        memory.enableInterruptFlag(0b10)
+                    }
                     state.memory.LY = 0
                 }
             }
