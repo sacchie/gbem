@@ -75,5 +75,6 @@ data class State(
     val p1: P1 = P1(),
     var ramEnable: Boolean = false, /* currently only for MBC1 (cartridgeType = $03) */
     val lcdStatusData: LcdStatusData = LcdStatusData(),
+    var windowInternalLineCounter: Int = 0,
     val ppuDebugParams: DebugParams = DebugParams(drawBackground = true, drawWindow = true, drawSprites = true)
 )

@@ -279,6 +279,12 @@ fun makeMemory(
                 memory.vram[addr - 0x8000] = int8
 //                    System.err.println("set8: [0x${addr.toString(16)}] <- 0x${int8.toString(16)}")
             }
+
+            in MemoryData.OAM_RANGE -> {
+                // TODO direct access to OAM is not allowed during mode 2 and 3
+                memory.oam[addr - MemoryData.OAM_RANGE.first] = int8
+            }
+
             // TODO: https://gbdev.io/pandocs/Hardware_Reg_List.html
             0xFF00 -> {
                 p1.selectDPad = int8 and 0b10000 == 0
@@ -575,7 +581,14 @@ System.err.println(
                     memory.enableInterruptFlag(0b10)
                 }
                 startDrawingScanLine(state.memory.LY, state.ppuDebugParams) {
-                    drawScanlineInViewport(memory, state.memory.LY, state.ppuDebugParams, it)
+                    drawScanlineInViewport(
+                        memory,
+                        state.memory.LY,
+                        state.windowInternalLineCounter,
+                        { state.windowInternalLineCounter++ },
+                        state.ppuDebugParams,
+                        it
+                    )
                 }
             } else if (state.ppuMode == PpuMode.MODE0 && totalCycleCount >= 80L + 170L + 206L) {
                 incrementLY()
@@ -586,6 +599,7 @@ System.err.println(
                     if (state.lcdStatusData.modeSelected[PpuMode.MODE1]!!) {
                         memory.enableInterruptFlag(0b10)
                     }
+                    state.windowInternalLineCounter = 0
                 } else {
                     state.ppuMode = PpuMode.MODE2
                     if (state.lcdStatusData.modeSelected[PpuMode.MODE2]!!) {

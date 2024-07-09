@@ -87,6 +87,8 @@ data class DebugParams(
 fun drawScanlineInViewport(
     memory: Memory,
     ly: Int,
+    windowInternalLineCounter: Int,
+    incrementWindowInternalLineCounter: () -> Unit,
     debugParams: DebugParams,
     drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit,
 ) {
@@ -100,8 +102,13 @@ fun drawScanlineInViewport(
     val windowEnabled = (LCDC and 1.shl(5)) > 0
     for (lx in 0 until VIEWPORT_W) {
         val bgDotData = if (debugParams.drawBackground && bgAndWindowEnabled) getDotDataForBackdround(memory, LCDC, ly, lx) else null
-        val windowDotData = if (debugParams.drawWindow && windowEnabled && bgAndWindowEnabled) getDotDataForWindow(memory, LCDC, ly, lx) else null
+        val windowDotData = if (debugParams.drawWindow && windowEnabled && bgAndWindowEnabled) getDotDataForWindow(memory, LCDC, ly, lx, windowInternalLineCounter) else null
         bgAndWindowDotDataMap[lx] = windowDotData ?: bgDotData
+    }
+
+    // このscanlineで、1dotでもwindowを描画しようとするときのみ、window internal line counterをincrementする必要がある
+    if (windowEnabled && (0 until VIEWPORT_W).any { getDotDataForWindow(memory, LCDC, ly, it, windowInternalLineCounter) != null }) {
+        incrementWindowInternalLineCounter()
     }
 
     val spriteDataMap = mutableMapOf<Int, Pair<LCDColor, Boolean>>()
@@ -180,12 +187,13 @@ private fun toColor(value: Int2) = when (value) {
     else -> throw IllegalArgumentException()
 }
 
-// null は window がないケース
+// @return null は window がないケース
 private fun getDotDataForWindow(
     memory: Memory,
     LCDC: Int8,
     ly: Int,
     lx: Int,
+    windowInternalLineCounter: Int
 ): Int2? {
     val windowTileMapHead: Address = if ((LCDC and 1.shl(6)) > 0) 0x9C00 else 0x9800
     val LCDC4 = (LCDC and 1.shl(4)) > 0
@@ -194,7 +202,7 @@ private fun getDotDataForWindow(
     if (ly < WY) {
         return null
     }
-    val yOnWindow = ly - WY
+    val yOnWindow = windowInternalLineCounter
     val tileY = yOnWindow / TILE_H
     val yOnTile = yOnWindow % TILE_H
     if (lx < WX - 7) {
