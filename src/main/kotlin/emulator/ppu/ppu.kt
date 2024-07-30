@@ -254,33 +254,37 @@ private fun forEachSpritePixelForScanlineInViewportToBuffer(
 ) {
     // OAM (0xFE00-FE9F) から ly にあるsprite（上限10個）を取ってきて、描画
     val is8x16Mode = lcdc.isObjSize8x16()
-    var drawCount = 0
-    for (nthOam in 0..39) {
+    val ySize = if (is8x16Mode) 16 else 8
+
+    val oamIndices = (0 .. 39).filter { nthOam ->
         val oamData = memory.getOamData(nthOam)
         val yPosition = oamData.yPosition
-        val xPosition = oamData.xPosition
-        val tileId = oamData.tileId
-        val attributes = oamData.attributes
-        val bgAndWindowOverObj = attributes.and(0b10000000) > 0
-        val yFlip = attributes.and(0b01000000) > 0
-        val xFlip = attributes.and(0b00100000) > 0
-        val OBP = if (attributes.and(0b00010000) > 0) memory.get(ADDR_OBP1) else memory.get(ADDR_OBP0)
-        val ySize = if (is8x16Mode) 16 else 8
-        // スプライトの存在範囲y座標：yPosition - yPosition + 7/15
-        if (ly in yPosition until yPosition + ySize) {
-            drawCount++
+        ly in yPosition until yPosition + ySize
+    }.take(10).sortedBy {
+        nthOam -> memory.getOamData(nthOam).xPosition
+    }
+
+    for (lx in 0 until VIEWPORT_W) {
+        val nthOam = oamIndices.firstOrNull { nthOam ->
+            val xPosition = memory.getOamData(nthOam).xPosition
+            lx in xPosition until xPosition + 8
+        }
+        if (nthOam != null) {
+            val oamData = memory.getOamData(nthOam)
+            val yPosition = oamData.yPosition
+            val xPosition = oamData.xPosition
+            val tileId = oamData.tileId
+            val attributes = oamData.attributes
+            val bgAndWindowOverObj = attributes.and(0b10000000) > 0
+            val yFlip = attributes.and(0b01000000) > 0
+            val xFlip = attributes.and(0b00100000) > 0
+            val OBP = if (attributes.and(0b00010000) > 0) memory.get(ADDR_OBP1) else memory.get(ADDR_OBP0)
             val yOnTile = if (yFlip) ySize - 1 - (ly - yPosition) else ly - yPosition
-            for (xTmp in 0 until 8) {
-                val xOnTile = if (xFlip) 7 - (xTmp) else xTmp
-                val xOnScreen = xPosition + xTmp
-                val dotData = getDotDataOfPixelOnTileForSprites(memory, tileId, xOnTile, yOnTile)
-                val color = getColorForSprite(dotData, OBP)
-                if (color != null) {
-                    cb(xOnScreen, color, bgAndWindowOverObj)
-                }
-            }
-            if (drawCount == 10) {
-                break
+            val xOnTile = if (xFlip) 7 - (lx - xPosition) else lx - xPosition
+            val dotData = getDotDataOfPixelOnTileForSprites(memory, tileId, xOnTile, yOnTile)
+            val color = getColorForSprite(dotData, OBP)
+            if (color != null) {
+                cb(lx, color, bgAndWindowOverObj)
             }
         }
     }
