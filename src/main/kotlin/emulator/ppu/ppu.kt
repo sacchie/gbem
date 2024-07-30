@@ -281,7 +281,17 @@ private fun forEachSpritePixelForScanlineInViewportToBuffer(
             val OBP = if (attributes.and(0b00010000) > 0) memory.get(ADDR_OBP1) else memory.get(ADDR_OBP0)
             val yOnTile = if (yFlip) ySize - 1 - (ly - yPosition) else ly - yPosition
             val xOnTile = if (xFlip) 7 - (lx - xPosition) else lx - xPosition
-            val dotData = getDotDataOfPixelOnTileForSprites(memory, tileId, xOnTile, yOnTile)
+            val dotData = if (is8x16Mode) {
+                val topTileId = tileId and 0xFE
+                val bottomTileId = tileId or 0x01
+                if (8 <= yOnTile) {
+                    getDotDataOfPixelOnTileForSprites(memory, bottomTileId, xOnTile, yOnTile - 8)
+                } else {
+                    getDotDataOfPixelOnTileForSprites(memory, topTileId, xOnTile, yOnTile)
+                }
+            } else {
+                getDotDataOfPixelOnTileForSprites(memory, tileId, xOnTile, yOnTile)
+            }
             val color = getColorForSprite(dotData, OBP)
             if (color != null) {
                 cb(lx, color, bgAndWindowOverObj)
