@@ -142,7 +142,7 @@ fun drawScanlineInViewport(
     }
 
     val spriteDataMap = mutableMapOf<Int, Pair<LCDColor, Boolean>>()
-    if (debugParams.drawSprites) {
+    if (debugParams.drawSprites && lcdc.isObjEnabled()) {
         forEachSpritePixelForScanlineInViewportToBuffer(memory, lcdc, ly) { x, color, bgAndWindowOverObj ->
             spriteDataMap[x] = Pair(color, bgAndWindowOverObj)
         }
