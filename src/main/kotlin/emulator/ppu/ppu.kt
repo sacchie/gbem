@@ -27,16 +27,15 @@ const val ADDR_WX = 0xFF4B
  * Renders full background (256x256)
  */
 fun drawBackgroundToScreen(memory: Memory, drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit) {
-    val LCDC = memory.get(ADDR_LCDC)
+    val lcdc = LCDC(memory.get(ADDR_LCDC))
     // Ignoring LCDC.0 (BG Enabled)
-    val bgTileMapHead: Address = if ((LCDC and 0b1000) == 0b1000) 0x9C00 else 0x9800
-    val LCDC4 = (LCDC and 0b10000) == 0b10000
+    val bgTileMapHead: Address = if (lcdc.isBgTileMapArea0x9c00()) 0x9C00 else 0x9800
 
     for (iTile in 0..1023) {
         val tileX = iTile % 32
         val tileY = iTile / 32
         val tileId = memory.get(bgTileMapHead + iTile)
-        drawBackgroundTileToScreen(memory, tileX, tileY, tileId, LCDC4, drawPixelToScreen)
+        drawBackgroundTileToScreen(memory, tileX, tileY, tileId, lcdc, drawPixelToScreen)
     }
 }
 
@@ -45,7 +44,7 @@ fun drawBackgroundTileToScreen(
     tileX: Int,
     tileY: Int,
     tileId: Int8,
-    LCDC4: Boolean,
+    lcdc: LCDC,
     drawPixelToScreen: (x: Int, y: Int, color: LCDColor) -> Unit
 ) {
     val BGP = memory.get(ADDR_BGP)
@@ -53,7 +52,7 @@ fun drawBackgroundTileToScreen(
         for (xOnTile in 0..7) {
             val xOnScreen = tileX * TILE_W + xOnTile
             val yOnScreen = tileY * TILE_H + yOnTile
-            val dotData = getDotDataOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
+            val dotData = getDotDataOfPixelOnTileForBackgroundAndWindow(memory, lcdc, tileId, xOnTile, yOnTile)
             val color = getColorForBackgroundAndWindow(dotData, BGP)
             drawPixelToScreen(xOnScreen, yOnScreen, color)
         }
@@ -81,6 +80,18 @@ data class DebugParams(
     }
 }
 
+@JvmInline
+value class LCDC(private val value: Int8) {
+    fun isBgAndWindowEnabled(): Boolean = value and 1 > 0
+    fun isObjEnabled(): Boolean = value and 1.shl(1) > 0
+    fun isObjSize8x16(): Boolean = value and 1.shl(2) > 0
+    fun isBgTileMapArea0x9c00(): Boolean = value and 1.shl(3) > 0
+    fun isBgAndWindowTileDataArea0x8000(): Boolean = value and 1.shl(4) > 0
+    fun isWindowEnabled(): Boolean = value and 1.shl(5) > 0
+    fun isWindowTileMapArea0x9c00(): Boolean = value and 1.shl(6) > 0
+    fun isLCDAndPPUEnabled(): Boolean = value and 1.shl(7) > 0
+}
+
 /**
  * draw one scanline for LY = ly
  */
@@ -97,23 +108,42 @@ fun drawScanlineInViewport(
     }
 
     val bgAndWindowDotDataMap = MutableList<Int2?>(VIEWPORT_W) { null }
-    val LCDC = memory.get(ADDR_LCDC)
-    val bgAndWindowEnabled = (LCDC and 0x0001) == 1
-    val windowEnabled = (LCDC and 1.shl(5)) > 0
+    val lcdc = LCDC(memory.get(ADDR_LCDC))
+    val bgAndWindowEnabled = lcdc.isBgAndWindowEnabled()
+    val windowEnabled = lcdc.isWindowEnabled()
     for (lx in 0 until VIEWPORT_W) {
-        val bgDotData = if (debugParams.drawBackground && bgAndWindowEnabled) getDotDataForBackdround(memory, LCDC, ly, lx) else null
-        val windowDotData = if (debugParams.drawWindow && windowEnabled && bgAndWindowEnabled) getDotDataForWindow(memory, LCDC, ly, lx, windowInternalLineCounter) else null
+        val bgDotData = if (debugParams.drawBackground && bgAndWindowEnabled) getDotDataForBackdround(
+            memory,
+            lcdc,
+            ly,
+            lx
+        ) else null
+        val windowDotData = if (debugParams.drawWindow && windowEnabled && bgAndWindowEnabled) getDotDataForWindow(
+            memory,
+            lcdc,
+            ly,
+            lx,
+            windowInternalLineCounter
+        ) else null
         bgAndWindowDotDataMap[lx] = windowDotData ?: bgDotData
     }
 
     // このscanlineで、1dotでもwindowを描画しようとするときのみ、window internal line counterをincrementする必要がある
-    if (windowEnabled && (0 until VIEWPORT_W).any { getDotDataForWindow(memory, LCDC, ly, it, windowInternalLineCounter) != null }) {
+    if (windowEnabled && (0 until VIEWPORT_W).any {
+            getDotDataForWindow(
+                memory,
+                lcdc,
+                ly,
+                it,
+                windowInternalLineCounter
+            ) != null
+        }) {
         incrementWindowInternalLineCounter()
     }
 
     val spriteDataMap = mutableMapOf<Int, Pair<LCDColor, Boolean>>()
     if (debugParams.drawSprites) {
-        forEachSpritePixelForScanlineInViewportToBuffer(memory, LCDC, ly) { x, color, bgAndWindowOverObj ->
+        forEachSpritePixelForScanlineInViewportToBuffer(memory, lcdc, ly) { x, color, bgAndWindowOverObj ->
             spriteDataMap[x] = Pair(color, bgAndWindowOverObj)
         }
     }
@@ -134,12 +164,11 @@ fun drawScanlineInViewport(
 
 private fun getDotDataForBackdround(
     memory: Memory,
-    LCDC: Int8,
+    lcdc: LCDC,
     ly: Int,
     lx: Int,
 ): Int2 {
-    val bgTileMapHead: Address = if ((LCDC and 0b1000) == 0b1000) 0x9C00 else 0x9800
-    val LCDC4 = (LCDC and 0b10000) == 0b10000
+    val bgTileMapHead: Address = if (lcdc.isBgTileMapArea0x9c00()) 0x9C00 else 0x9800
     val SCX = memory.get(ADDR_SCX)
     val SCY = memory.get(ADDR_SCY)
     val yOnScreen = (SCY + ly) % SCREEN_H
@@ -153,7 +182,7 @@ private fun getDotDataForBackdround(
     val iTile = tileX + 32 * tileY
     val tileId = memory.get(bgTileMapHead + iTile)
 
-    return getDotDataOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
+    return getDotDataOfPixelOnTileForBackgroundAndWindow(memory, lcdc, tileId, xOnTile, yOnTile)
 }
 
 private fun getColorForBackgroundAndWindow(dotData: Int2, BGP: Int8): LCDColor {
@@ -190,13 +219,12 @@ private fun toColor(value: Int2) = when (value) {
 // @return null は window がないケース
 private fun getDotDataForWindow(
     memory: Memory,
-    LCDC: Int8,
+    lcdc: LCDC,
     ly: Int,
     lx: Int,
     windowInternalLineCounter: Int
 ): Int2? {
-    val windowTileMapHead: Address = if ((LCDC and 1.shl(6)) > 0) 0x9C00 else 0x9800
-    val LCDC4 = (LCDC and 1.shl(4)) > 0
+    val windowTileMapHead: Address = if (lcdc.isWindowTileMapArea0x9c00()) 0x9C00 else 0x9800
     val WX = memory.get(ADDR_WX) // X position plus 7
     val WY = memory.get(ADDR_WY)
     if (ly < WY) {
@@ -215,19 +243,19 @@ private fun getDotDataForWindow(
     val iTile = tileX + 32 * tileY
     val tileId = memory.get(windowTileMapHead + iTile)
 
-    return getDotDataOfPixelOnTileForBackgroundAndWindow(memory, LCDC4, tileId, xOnTile, yOnTile)
+    return getDotDataOfPixelOnTileForBackgroundAndWindow(memory, lcdc, tileId, xOnTile, yOnTile)
 }
 
 private fun forEachSpritePixelForScanlineInViewportToBuffer(
     memory: Memory,
-    LCDC: Int8,
+    lcdc: LCDC,
     ly: Int,
     cb: (x: Int, color: LCDColor, bgAndWindowOverObj: Boolean) -> Unit
 ) {
     // OAM (0xFE00-FE9F) から ly にあるsprite（上限10個）を取ってきて、描画
-    val is8x16Mode = LCDC.and(0b100) > 0
+    val is8x16Mode = lcdc.isObjSize8x16()
     var drawCount = 0
-    for (nthOam in 0 .. 39) {
+    for (nthOam in 0..39) {
         val oamData = memory.getOamData(nthOam)
         val yPosition = oamData.yPosition
         val xPosition = oamData.xPosition
@@ -263,12 +291,13 @@ private fun forEachSpritePixelForScanlineInViewportToBuffer(
  */
 private fun getDotDataOfPixelOnTileForBackgroundAndWindow(
     memory: Memory,
-    LCDC4: Boolean,
+    lcdc: LCDC,
     tileId: Int8,
     xOnTile: Int,
     yOnTile: Int
 ): Int2 {
-    val tileDataBaseAddress = if (LCDC4) 0x8000 else (if (tileId < 128) 0x9000 else 0x8000)
+    val tileDataBaseAddress =
+        if (lcdc.isBgAndWindowTileDataArea0x8000()) 0x8000 else (if (tileId < 128) 0x9000 else 0x8000)
     return getDotDataOfPixelOnTileForTileDataBaseAddress(memory, tileDataBaseAddress, tileId, xOnTile, yOnTile)
 }
 
@@ -317,10 +346,10 @@ interface Memory {
         assert(nth in 0..39)
         val oamHeadAddress = 0xFE00 + 4 * nth
         return OamData(
-            yPosition=get(oamHeadAddress) - 16,
-            xPosition=get(oamHeadAddress + 1) - 8,
-            tileId=get(oamHeadAddress+2),
-            attributes=get(oamHeadAddress+3)
+            yPosition = get(oamHeadAddress) - 16,
+            xPosition = get(oamHeadAddress + 1) - 8,
+            tileId = get(oamHeadAddress + 2),
+            attributes = get(oamHeadAddress + 3)
         )
     }
 }
