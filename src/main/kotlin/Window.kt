@@ -1,3 +1,4 @@
+import emulator.DebugHandlers
 import emulator.JoypadHandlers
 import emulator.ppu.LCDColor
 import java.awt.*
@@ -20,9 +21,10 @@ class Window(private val width: Int, private  val height:Int, title: String) {
     private val graphics: Graphics
     private val image: Image
     private val imageBuffer: Graphics
+    private val frame: JFrame
 
     init {
-        val frame = JFrame(title)
+        frame = JFrame(title)
         frame.defaultCloseOperation = WindowConstants.EXIT_ON_CLOSE
         frame.isResizable = true
         canvas = Canvas()
@@ -39,7 +41,7 @@ class Window(private val width: Int, private  val height:Int, title: String) {
         imageBuffer = image.getGraphics()
     }
 
-    fun bindJoypadHandlers(joypadHandlers: JoypadHandlers) {
+    fun bindJoypadHandlers(joypadHandlers: JoypadHandlers, debugHandlers: DebugHandlers) {
         canvas.addKeyListener(object : KeyAdapter() {
             override fun keyPressed(e: KeyEvent?) {
                 when(e?.keyCode) {
@@ -66,12 +68,28 @@ class Window(private val width: Int, private  val height:Int, title: String) {
                     KeyEvent.VK_RIGHT -> joypadHandlers.onRight(false)
                 }
             }
+
+            override fun keyTyped(e: KeyEvent?) {
+                when(e?.keyChar) {
+                    'G' -> debugHandlers.toggleDrawBackground()
+                    'g' -> debugHandlers.toggleDrawBackground()
+                    'W' -> debugHandlers.toggleDrawWindow()
+                    'w' -> debugHandlers.toggleDrawWindow()
+                    'S' -> debugHandlers.toggleDrawSprites()
+                    's' -> debugHandlers.toggleDrawSprites()
+                    'O' -> debugHandlers.printOamData()
+                    'o' -> debugHandlers.printOamData()
+                }
+            }
         })
     }
 
     fun draw(f: (buf: Graphics)-> Unit) {
-        // imageBuffer.clearRect(0, 0, width, height)
         f(imageBuffer)
         graphics.drawImage(image, 0, 0, canvas)
+    }
+
+    fun updateTitle(title: String) {
+        frame.title = title
     }
 }

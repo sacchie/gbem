@@ -1,5 +1,8 @@
 import emulator.Emulation
+import emulator.ppu.DebugParams
 import emulator.ppu.LCDColor
+import emulator.ppu.OamData
+import java.awt.Color
 
 
 fun main(args: Array<String>) {
@@ -10,17 +13,19 @@ fun main(args: Array<String>) {
     val romByteArray = object {}.javaClass.getResourceAsStream("rom.gb")!!.readAllBytes()
 
     val emu = object : Emulation(romByteArray) {
-        override fun startDrawingScanLine(drawScanLine: (drawPixel: (x: Int, y: Int, color: LCDColor) -> Unit) -> Unit) {
+        override fun startDrawingScanLine(ly: Int, ppuDebugParams: DebugParams, drawScanLine: (drawPixel: (x: Int, y: Int, color: LCDColor) -> Unit) -> Unit) {
             mainWindow.draw { buf ->
                 drawScanLine { x, y, color ->
                     buf.color = COLOR[color]
                     buf.fillRect(x * zoom, y * zoom, zoom, zoom)
                 }
             }
+            // FIXME: WSLでこれをするとIntelliJごとフリーズする
+            // mainWindow.updateTitle(ppuDebugParams.toString())
         }
     }
 
-    mainWindow.bindJoypadHandlers(emu.getJoypadHandlers())
+    mainWindow.bindJoypadHandlers(emu.getJoypadHandlers(), emu.getDebugHandlers())
 
     emu.run()
 

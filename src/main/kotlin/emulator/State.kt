@@ -1,6 +1,9 @@
 package emulator
-import emulator.cpu.*
-import emulator.ppu.Int8
+
+import emulator.cpu.Int16
+import emulator.cpu.Int8
+import emulator.ppu.DebugParams
+import emulator.ppu.PpuMode
 
 data class RegisterData(
     var pc: Int16 = 0,
@@ -14,13 +17,13 @@ data class RegisterData(
 )
 
 data class MemoryData(
-    val ram: MutableList<Int8> = MutableList(0x2000) { 0 },
+    val wram: MutableList<Int8> = MutableList(0x2000) { 0 },
+    val externalRam: MutableList<Int8> = MutableList(0x2000) { 0 }, // TODO banking for non-MBC1
     val vram: MutableList<Int8> = MutableList(0x2000) { 0 },
     val hram: MutableList<Int8> = MutableList(HRAM_RANGE.count()) { 0 },
     val oam: MutableList<Int8> = MutableList(OAM_RANGE.count()) { 0 },
 
     var LCDC: Int8 = 0,
-    var STAT: Int8 = 0,
     var BGP: Int8 = 0,
     var OBP0: Int8 = 0,
     var OBP1: Int8 = 0,
@@ -31,6 +34,7 @@ data class MemoryData(
     var LY: Int8 = 0,
     var IF: Int8 = 0,
     var IE: Int8 = 0,
+    var LYC: Int8 = 0,
 ) {
     companion object {
         val HRAM_RANGE = 0xFF80..0xFFFE
@@ -53,10 +57,24 @@ data class P1(
     var selectButtons: Boolean = false,
 )
 
+data class LcdStatusData(
+    var lycIntSelected: Boolean = false,
+    val modeSelected: MutableMap<PpuMode, Boolean> = mutableMapOf(
+        PpuMode.MODE0 to false,
+        PpuMode.MODE1 to false,
+        PpuMode.MODE2 to false
+    ),
+)
+
 data class State(
     val register: RegisterData = RegisterData(),
     val memory: MemoryData = MemoryData(),
     val timer: TimerData = TimerData(),
+    var ppuMode: PpuMode = PpuMode.MODE2,
     var halted: Boolean = false,
     val p1: P1 = P1(),
+    var ramEnable: Boolean = false, /* currently only for MBC1 (cartridgeType = $03) */
+    val lcdStatusData: LcdStatusData = LcdStatusData(),
+    var windowInternalLineCounter: Int = 0,
+    val ppuDebugParams: DebugParams = DebugParams(drawBackground = true, drawWindow = true, drawSprites = true)
 )
