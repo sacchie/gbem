@@ -154,7 +154,14 @@ fun drawScanlineInViewport(
         val bgAndWindowDotData = bgAndWindowDotDataMap[lx]
         if (spriteData == null || (spriteData.second && bgAndWindowDotData != null && bgAndWindowDotData != 0)) {
             // lx にスプライトが無い、あるいはあるがBG/Window優先
-            bgAndWindowDotData?.let { drawPixelToScreen(lx, ly, getColorForBackgroundAndWindow(it, BGP)) }
+            drawPixelToScreen(
+                lx,
+                ly,
+                if (bgAndWindowDotData != null) getColorForBackgroundAndWindow(
+                    bgAndWindowDotData,
+                    BGP
+                ) else LCDColor.White
+            )
         } else {
             // スプライト優先
             drawPixelToScreen(lx, ly, spriteData.first)
@@ -256,12 +263,12 @@ private fun forEachSpritePixelForScanlineInViewportToBuffer(
     val is8x16Mode = lcdc.isObjSize8x16()
     val ySize = if (is8x16Mode) 16 else 8
 
-    val oamIndices = (0 .. 39).filter { nthOam ->
+    val oamIndices = (0..39).filter { nthOam ->
         val oamData = memory.getOamData(nthOam)
         val yPosition = oamData.yPosition
         ly in yPosition until yPosition + ySize
-    }.take(10).sortedBy {
-        nthOam -> memory.getOamData(nthOam).xPosition
+    }.take(10).sortedBy { nthOam ->
+        memory.getOamData(nthOam).xPosition
     }
 
     for (lx in 0 until VIEWPORT_W) {
