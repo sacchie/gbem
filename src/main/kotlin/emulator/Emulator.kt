@@ -187,9 +187,12 @@ fun makeMemory(
             }
         }
 
+        0xFF05 -> timer.tima
+
         0xFF0F -> memory.IF
         0xFF12 -> 0 /* TODO audio */
         0xFF17 -> 0 /* TODO audio */
+        0xFF26 -> 0 /* TODO NR52: Audio master control */
         0xFF40 -> memory.LCDC
         0xFF41 ->
             (when (lcdStatus.getPpuMode()) {
@@ -294,6 +297,7 @@ fun makeMemory(
             0xFF01 -> {}
             0xFF02 -> {}
             0xFF05 -> setTima(int8)
+            0xFF06 -> setTma(int8)
             0xFF07 -> setTac(int8)
             0xFF0F -> memory.IF = int8
             in 0xFF10..0xFF26 -> {} /* TODO audio */
@@ -376,6 +380,10 @@ fun makeMemory(
 
     fun setTima(value: Int8) {
         timer.tima = value
+    }
+
+    fun setTma(value: Int8) {
+        timer.tma = value
     }
 
     fun setTac(value: Int8) {
