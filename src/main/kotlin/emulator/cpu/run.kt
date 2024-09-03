@@ -527,7 +527,7 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState): Int =
         }
 
         is OpLdR16D16 -> {
-            assert(r == RegEnum16.BC || r == RegEnum16.DE || r == RegEnum16.HL || r == RegEnum16.SP)
+            // assert(r == RegEnum16.BC || r == RegEnum16.DE || r == RegEnum16.HL || r == RegEnum16.SP)
             regs.r16(r).set(d)
             regs.incPc(3)
             12
@@ -546,7 +546,7 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState): Int =
         }
 
         is OpPushR16 -> {
-            assert(r == RegEnum16.BC || r == RegEnum16.DE || r == RegEnum16.HL || r == RegEnum16.AF)
+            // assert(r == RegEnum16.BC || r == RegEnum16.DE || r == RegEnum16.HL || r == RegEnum16.AF)
             regs.updateSp { if (it < 2) it + 0x10000 - 2 else it - 2 }
             memory.set16(regs.getSp(), regs.r16(r).get())
             regs.incPc()
@@ -554,7 +554,7 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState): Int =
         }
 
         is OpPopR16 -> {
-            assert(r == RegEnum16.BC || r == RegEnum16.DE || r == RegEnum16.HL || r == RegEnum16.AF)
+            // assert(r == RegEnum16.BC || r == RegEnum16.DE || r == RegEnum16.HL || r == RegEnum16.AF)
             val popValue = memory.get16(regs.getSp())
             val setValue = if (r == RegEnum16.AF) popValue and 0xFFF0 else popValue
             regs.r16(r).set(setValue)
@@ -775,7 +775,7 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState): Int =
         }
 
         is OpIncR16 -> {
-            assert(arrayOf(RegEnum16.BC, RegEnum16.DE, RegEnum16.HL, RegEnum16.SP).contains(r))
+            // assert(arrayOf(RegEnum16.BC, RegEnum16.DE, RegEnum16.HL, RegEnum16.SP).contains(r))
             val reg16 = regs.r16(r)
             reg16.set((reg16.get() + 1) % 0x10000)
             regs.incPc()
@@ -783,7 +783,7 @@ fun Op.run(regs: Registers, memory: Memory, haltState: HaltState): Int =
         }
 
         is OpDecR16 -> {
-            assert(arrayOf(RegEnum16.BC, RegEnum16.DE, RegEnum16.HL, RegEnum16.SP).contains(r))
+            // assert(arrayOf(RegEnum16.BC, RegEnum16.DE, RegEnum16.HL, RegEnum16.SP).contains(r))
             val reg16 = regs.r16(r)
             reg16.set(((reg16.get() - 1) + 0x10000) % 0x10000)
             regs.incPc()

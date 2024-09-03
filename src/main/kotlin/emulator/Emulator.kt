@@ -313,7 +313,7 @@ fun makeMemory(
             0xFF42 -> memory.SCY = int8
             0xFF43 -> memory.SCX = int8
             0xFF45 -> {
-                assert(int8 < 154)
+                // assert(int8 < 154)
                 memory.LYC = int8
             }
 
@@ -518,6 +518,7 @@ abstract class Emulation(private val romByteArray: ByteArray) {
         val romSize = memory.getRomSize()
         val ramSize = memory.getRamSize()
 
+        /*
         System.err.println(
             "cartridgeType: 0x${cartridgeType.toString(16)}, romSize: 0x${romSize.toString(16)}, ramSize: 0x${
                 ramSize.toString(
@@ -525,6 +526,7 @@ abstract class Emulation(private val romByteArray: ByteArray) {
                 )
             })"
         )
+        */
 
         // initialize like boot ROM
         registers.setA(0x01)

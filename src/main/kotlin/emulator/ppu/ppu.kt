@@ -80,7 +80,7 @@ data class DebugParams(
     }
 }
 
-@JvmInline
+// @JvmInline
 value class LCDC(private val value: Int8) {
     fun isBgAndWindowEnabled(): Boolean = value and 1 > 0
     fun isObjEnabled(): Boolean = value and 1.shl(1) > 0
@@ -364,7 +364,7 @@ interface Memory {
     fun getLY(): Int8
 
     fun getOamData(nth: Int): OamData {
-        assert(nth in 0..39)
+        // assert(nth in 0..39)
         val oamHeadAddress = 0xFE00 + 4 * nth
         return OamData(
             yPosition = get(oamHeadAddress) - 16,

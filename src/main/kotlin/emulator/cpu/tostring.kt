@@ -1,6 +1,7 @@
 package emulator.cpu
 
 fun objToStringHex(obj: Any): String {
+    /*
     val fields = obj::class.java.declaredFields
     val s = fields.joinToString(", ") {
         // fieldを破壊的に変更していて怪しいけど、Java的には仕方ないらしい
@@ -15,4 +16,6 @@ fun objToStringHex(obj: Any): String {
 
     }
     return "${obj::class.java.simpleName}($s)"
+         */
+    return obj.toString()
 }
