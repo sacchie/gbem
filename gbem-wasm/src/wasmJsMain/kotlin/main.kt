@@ -20,5 +20,5 @@ fun emulate(rom: Uint8Array, draw: (x: Int, y: Int, color: Int) -> Unit) {
             drawScanLine { x, y, color -> draw(x, y, color.ordinal) }
         }
     }
-    emu.run(100)
+    emu.run()
 }
