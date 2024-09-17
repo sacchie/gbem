@@ -4,14 +4,17 @@ import emulator.ppu.LCDColor
 import org.khronos.webgl.Uint8Array
 import org.khronos.webgl.get
 
+val EMULATIONS: MutableMap<Int, Emulation> = mutableMapOf()
+
 @JsExport
-fun emulate(rom: Uint8Array, draw: (x: Int, y: Int, color: Int) -> Unit) {
+fun newEmulator(rom: Uint8Array, draw: (x: Int, y: Int, color: Int) -> Unit): Int {
     val ba = ByteArray(rom.length)
     for (i in ba.indices) {
         ba[i] = rom[i]
     }
 
-    val emu = object : Emulation(ba) {
+    val id = EMULATIONS.size
+    EMULATIONS[id] = object : Emulation(ba) {
         override fun startDrawingScanLine(
             ly: Int,
             ppuDebugParams: DebugParams,
@@ -20,5 +23,10 @@ fun emulate(rom: Uint8Array, draw: (x: Int, y: Int, color: Int) -> Unit) {
             drawScanLine { x, y, color -> draw(x, y, color.ordinal) }
         }
     }
-    emu.run()
+    return id
+}
+
+@JsExport
+fun emulatorStep(id: Int) {
+    EMULATIONS[id]?.run(100)
 }
