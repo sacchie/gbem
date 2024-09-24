@@ -28,7 +28,7 @@ fun newEmulator(rom: Uint8Array, draw: (x: Int, y: Int, color: Int) -> Unit): In
 
 @JsExport
 fun emulatorStep(id: Int) {
-    EMULATIONS[id]?.run(100)
+    EMULATIONS[id]?.run(10000)
 }
 
 @JsExport
