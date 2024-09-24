@@ -35,3 +35,20 @@ fun emulatorStep(id: Int) {
 fun getDrawnFrameCount(id: Int): Int {
     return EMULATIONS[id]!!.drawnFrameCount
 }
+
+@JsExport
+fun onJoypadInput(id: Int, key: String, pressed: Boolean) {
+    val joypadHandlers = EMULATIONS[id]!!.getJoypadHandlers()
+    val handler = when (key) {
+        "Up" -> joypadHandlers::onUp
+        "Down" -> joypadHandlers::onDown
+        "Left" -> joypadHandlers::onLeft
+        "Right" -> joypadHandlers::onRight
+        "A" -> joypadHandlers::onA
+        "B" -> joypadHandlers::onB
+        "Start" -> joypadHandlers::onStart
+        "Select" -> joypadHandlers::onSelect
+        else -> throw RuntimeException()
+    }
+    handler(pressed)
+}
