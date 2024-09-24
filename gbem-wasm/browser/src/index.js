@@ -1,4 +1,4 @@
-import {newEmulator, emulatorStep} from 'gbem-wasm/packages/gbem-wasm-wasm-js/kotlin/gbem-wasm-wasm-js.mjs';
+import {newEmulator, emulatorStep, getDrawnFrameCount} from 'gbem-wasm/packages/gbem-wasm-wasm-js/kotlin/gbem-wasm-wasm-js.mjs';
 
 console.log('hello');
 let id = null;
@@ -11,8 +11,6 @@ let id = null;
 
 const canvas = document.getElementById("emulation");
 const buffer = new Array(160 * 144);
-
-let flag = false;
 
 function cb(x, y, color) {
     // console.log({x, y, color});
@@ -36,3 +34,18 @@ setInterval(() => {
     }
     emulatorStep(id);
 }, 1);
+
+let prevDrawnFrameCount = 0;
+let prevTimeMs = Date.now()
+setInterval(() => {
+    if (id === null) {
+        return;
+    }
+    const currDrawnFrameCount = getDrawnFrameCount(id);
+    const currTimeMs = Date.now();
+    const fps = (currDrawnFrameCount - prevDrawnFrameCount) / (currTimeMs - prevTimeMs) * 1000;
+    prevDrawnFrameCount = currDrawnFrameCount;
+    prevTimeMs = currTimeMs;
+
+    document.getElementById('fps').innerText = fps.toString();
+}, 1000)

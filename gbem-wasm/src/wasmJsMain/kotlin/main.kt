@@ -30,3 +30,8 @@ fun newEmulator(rom: Uint8Array, draw: (x: Int, y: Int, color: Int) -> Unit): In
 fun emulatorStep(id: Int) {
     EMULATIONS[id]?.run(100)
 }
+
+@JsExport
+fun getDrawnFrameCount(id: Int): Int {
+    return EMULATIONS[id]!!.drawnFrameCount
+}

@@ -417,6 +417,7 @@ fun makeTimer(timer: TimerData): Timer = object : Timer() {
 abstract class Emulation(private val romByteArray: ByteArray) {
     val state = State()
     val stepFn: () -> Unit
+    var drawnFrameCount: Int = 0
 
     init {
         val registers = makeRegisters(state.register)
@@ -549,6 +550,7 @@ System.err.println(
                         memory.enableInterruptFlag(0b10)
                     }
                     state.memory.LY = 0
+                    drawnFrameCount++
                 }
             }
 
