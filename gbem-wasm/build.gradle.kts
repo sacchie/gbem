@@ -12,7 +12,7 @@ repositories {
 kotlin {
     sourceSets {
         val commonMain by getting {
-            kotlin.srcDir("../src/main/kotlin/emulator/")
+            kotlin.srcDir("../gbem-lib/src/main/kotlin/")
         }
     }
 
