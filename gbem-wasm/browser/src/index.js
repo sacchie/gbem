@@ -1,8 +1,8 @@
-import {newEmulator, emulatorStep, getDrawnFrameCount, onJoypadInput} from 'gbem-wasm/packages/gbem-wasm-wasm-js/kotlin/gbem-wasm-wasm-js.mjs';
+import {makeEmulator, emulatorStep, emulatorDrawnFrameCount, emulatorOnJoypadInput} from 'gbem-wasm/packages/gbem-wasm-wasm-js/kotlin/gbem-wasm-wasm-js.mjs';
 
-class Emulation {
+class Emulator {
     constructor(romUint8Array, cb) {
-        this.id = newEmulator(romUint8Array, cb);
+        this.id = makeEmulator(romUint8Array, cb);
     }
     
     step() {
@@ -10,21 +10,21 @@ class Emulation {
     }
     
     drawnFrameCount() {
-        return getDrawnFrameCount(this.id);
+        return emulatorDrawnFrameCount(this.id);
     }
     
     handleJoypadInput(button, pressed) {
-        onJoypadInput(this.id, button, pressed)
+        emulatorOnJoypadInput(this.id, button, pressed)
     }
 }
 
 console.log('hello');
-let emulation = null;
+let emulator = null;
 
 (async () => {
     const rom = await fetch('http://localhost:3000/rom.gb');
     const uaRom = new Uint8Array(await rom.arrayBuffer());
-    emulation = new Emulation(uaRom, drawPoint);
+    emulator = new Emulator(uaRom, drawPoint);
 })();
 
 const zoom = 3
@@ -41,19 +41,19 @@ function drawPoint(x, y, color) {
 }
 
 setInterval(() => {
-    if (emulation === null) {
+    if (emulator === null) {
         return;
     }
-    emulation.step();
+    emulator.step();
 }, 10);
 
 let prevDrawnFrameCount = 0;
 let prevTimeMs = Date.now()
 setInterval(() => {
-    if (emulation === null) {
+    if (emulator === null) {
         return;
     }
-    const currDrawnFrameCount = emulation.drawnFrameCount();
+    const currDrawnFrameCount = emulator.drawnFrameCount();
     const currTimeMs = Date.now();
     const fps = (currDrawnFrameCount - prevDrawnFrameCount) / (currTimeMs - prevTimeMs) * 1000;
     prevDrawnFrameCount = currDrawnFrameCount;
@@ -63,10 +63,10 @@ setInterval(() => {
 }, 1000)
 
 document.addEventListener('keydown', e => {
-    handleKey(emulation, e.code, true)
+    handleKey(emulator, e.code, true)
 })
 document.addEventListener('keyup', e => {
-    handleKey(emulation, e.code, false)
+    handleKey(emulator, e.code, false)
 });
 
 function handleKey(emulation, code, pressed) {

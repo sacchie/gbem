@@ -7,7 +7,7 @@ import org.khronos.webgl.get
 val EMULATIONS: MutableMap<Int, Emulation> = mutableMapOf()
 
 @JsExport
-fun newEmulator(rom: Uint8Array, draw: (x: Int, y: Int, color: Int) -> Unit): Int {
+fun makeEmulator(rom: Uint8Array, draw: (x: Int, y: Int, color: Int) -> Unit): Int {
     val ba = ByteArray(rom.length)
     for (i in ba.indices) {
         ba[i] = rom[i]
@@ -32,12 +32,12 @@ fun emulatorStep(id: Int) {
 }
 
 @JsExport
-fun getDrawnFrameCount(id: Int): Int {
+fun emulatorDrawnFrameCount(id: Int): Int {
     return EMULATIONS[id]!!.drawnFrameCount
 }
 
 @JsExport
-fun onJoypadInput(id: Int, key: String, pressed: Boolean) {
+fun emulatorOnJoypadInput(id: Int, key: String, pressed: Boolean) {
     val joypadHandlers = EMULATIONS[id]!!.getJoypadHandlers()
     val handler = when (key) {
         "Up" -> joypadHandlers::onUp
