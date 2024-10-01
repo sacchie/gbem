@@ -1,5 +1,6 @@
 **/src/main/resources/*.gb
 **/src/test/resources/*.gb
+**/kotlin-js-store
 
 # Created by https://www.toptal.com/developers/gitignore/api/intellij,kotlin,gradle
 # Edit at https://www.toptal.com/developers/gitignore?templates=intellij,kotlin,gradle
