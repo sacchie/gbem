@@ -80,8 +80,7 @@ data class DebugParams(
     }
 }
 
-@JvmInline
-value class LCDC(private val value: Int8) {
+data class LCDC(private val value: Int8) {
     fun isBgAndWindowEnabled(): Boolean = value and 1 > 0
     fun isObjEnabled(): Boolean = value and 1.shl(1) > 0
     fun isObjSize8x16(): Boolean = value and 1.shl(2) > 0
