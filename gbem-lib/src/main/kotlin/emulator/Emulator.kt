@@ -313,7 +313,7 @@ fun makeMemory(
             0xFF42 -> memory.SCY = int8
             0xFF43 -> memory.SCX = int8
             0xFF45 -> {
-                assert(int8 < 154)
+                // assert(int8 < 154)
                 memory.LYC = int8
             }
 
@@ -413,8 +413,152 @@ fun makeTimer(timer: TimerData): Timer = object : Timer() {
     }
 }
 
+
 abstract class Emulation(private val romByteArray: ByteArray) {
     val state = State()
+    val stepFn: () -> Unit
+    var drawnFrameCount: Int = 0
+
+    init {
+        val registers = makeRegisters(state.register)
+        val memory = makeMemory(
+            romByteArray,
+            state.memory,
+            state.timer,
+            state.p1,
+            { on -> state.ramEnable = on },
+            makeLcdStatus()
+        )
+        val timer = makeTimer(state.timer)
+
+        val haltState = object : HaltState {
+            override fun setHalted(b: Boolean) {
+                state.halted = b
+            }
+
+            override fun getHalted(): Boolean {
+                return state.halted
+            }
+        }
+
+        val cartridgeType = memory.getCartridgeType()
+        val romSize = memory.getRomSize()
+        val ramSize = memory.getRamSize()
+
+        /*
+        System.err.println(
+            "cartridgeType: 0x${cartridgeType.toString(16)}, romSize: 0x${romSize.toString(16)}, ramSize: 0x${
+                ramSize.toString(
+                    16
+                )
+            })"
+        )
+        */
+
+        // initialize like boot ROM
+        registers.setA(0x01)
+        registers.setZero(true)
+        registers.setSubtraction(false)
+        // TODO set or reset according to header checksum
+        registers.setB(0x00)
+        registers.setC(0x13)
+        registers.setD(0x00)
+        registers.setE(0xD8)
+        registers.setH(0x01)
+        registers.setL(0x4D)
+        state.register.pc = 0x100
+        state.register.sp = 0xFFFE
+
+        stepFn = {
+            handleInterrupts(memory, registers, haltState)
+
+            val cycleCount = if (!state.halted) {
+                val pc = registers.getPc()
+                val op = parse(memory, pc)
+                /*
+if (count > 1000000L) {
+System.err.println(
+    "${(if (state.register.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(state.register.callDepthForDebug))} 0x${
+        pc.toString(
+            16
+        )
+    }: $op"
+)
+                }
+                */
+                //  CPUがstateを更新
+                op.run(registers, memory, haltState)
+            } else {
+                4
+            }
+
+            // emulator.Timer
+            if (timer.tick(cycleCount)) {
+                memory.enableInterruptFlag(0b100)
+            }
+
+            state.cycleCount += cycleCount
+
+            fun incrementLY() {
+                state.memory.LY++
+                if (state.memory.LYC == state.memory.LY && state.lcdStatusData.lycIntSelected) {
+                    memory.enableInterruptFlag(0b10)
+                }
+                state.cycleCount %= 456
+            }
+
+            // TODO Mode2, 3の間はOAMにアクセスできない
+            if (state.ppuMode == PpuMode.MODE2 && state.cycleCount >= 80) {
+                state.ppuMode = PpuMode.MODE3
+            } else if (state.ppuMode == PpuMode.MODE3 && state.cycleCount >= 80 + 170) {
+                state.ppuMode = PpuMode.MODE0
+                if (state.lcdStatusData.modeSelected[PpuMode.MODE0]!!) {
+                    memory.enableInterruptFlag(0b10)
+                }
+                startDrawingScanLine(state.memory.LY, state.ppuDebugParams) {
+                    drawScanlineInViewport(
+                        memory,
+                        state.memory.LY,
+                        state.windowInternalLineCounter,
+                        { state.windowInternalLineCounter++ },
+                        state.ppuDebugParams,
+                        it
+                    )
+                }
+            } else if (state.ppuMode == PpuMode.MODE0 && state.cycleCount >= 80 + 170 + 206) {
+                incrementLY()
+
+                if (state.memory.LY == 144) {
+                    state.ppuMode = PpuMode.MODE1 // VBLANK
+                    memory.enableInterruptFlag(0b1)
+                    if (state.lcdStatusData.modeSelected[PpuMode.MODE1]!!) {
+                        memory.enableInterruptFlag(0b10)
+                    }
+                    state.windowInternalLineCounter = 0
+                } else {
+                    state.ppuMode = PpuMode.MODE2
+                    if (state.lcdStatusData.modeSelected[PpuMode.MODE2]!!) {
+                        memory.enableInterruptFlag(0b10)
+                    }
+                }
+            } else if (state.ppuMode == PpuMode.MODE1 && state.cycleCount >= 456) {
+                incrementLY()
+
+                if (state.memory.LY == 154) {
+                    state.ppuMode = PpuMode.MODE2
+                    if (state.lcdStatusData.modeSelected[PpuMode.MODE2]!!) {
+                        memory.enableInterruptFlag(0b10)
+                    }
+                    state.memory.LY = 0
+                    drawnFrameCount++
+                }
+            }
+
+            //  APUがstate.memory.AUDIO領域を見て音を出す
+            //  割り込みがあったらコールバックを実行
+        }
+
+    }
 
     abstract fun startDrawingScanLine(
         ly: Int,
@@ -492,142 +636,13 @@ abstract class Emulation(private val romByteArray: ByteArray) {
         override fun getPpuMode() = state.ppuMode
     }
 
+    fun step() {
+        stepFn()
+    }
+
     fun run(maxLoopCount: Long = Long.MAX_VALUE) {
-        val registers = makeRegisters(state.register)
-        val memory = makeMemory(
-            romByteArray,
-            state.memory,
-            state.timer,
-            state.p1,
-            { on -> state.ramEnable = on },
-            makeLcdStatus()
-        )
-        val timer = makeTimer(state.timer)
-
-        val haltState = object : HaltState {
-            override fun setHalted(b: Boolean) {
-                state.halted = b
-            }
-
-            override fun getHalted(): Boolean {
-                return state.halted
-            }
-        }
-
-        val cartridgeType = memory.getCartridgeType()
-        val romSize = memory.getRomSize()
-        val ramSize = memory.getRamSize()
-
-        System.err.println(
-            "cartridgeType: 0x${cartridgeType.toString(16)}, romSize: 0x${romSize.toString(16)}, ramSize: 0x${
-                ramSize.toString(
-                    16
-                )
-            })"
-        )
-
-        // initialize like boot ROM
-        registers.setA(0x01)
-        registers.setZero(true)
-        registers.setSubtraction(false)
-        // TODO set or reset according to header checksum
-        registers.setB(0x00)
-        registers.setC(0x13)
-        registers.setD(0x00)
-        registers.setE(0xD8)
-        registers.setH(0x01)
-        registers.setL(0x4D)
-        state.register.pc = 0x100
-        state.register.sp = 0xFFFE
-
-        var loopCount = 0L
-        var totalCycleCount = 0L
-        while (loopCount++ < maxLoopCount) {
-            handleInterrupts(memory, registers, haltState)
-
-            val cycleCount = if (!state.halted) {
-                val pc = registers.getPc()
-                val op = parse(memory, pc)
-                /*
-if (count > 1000000L) {
-System.err.println(
-    "${(if (state.register.callDepthForDebug >= 0) "*" else "-").repeat(Math.abs(state.register.callDepthForDebug))} 0x${
-        pc.toString(
-            16
-        )
-    }: $op"
-)
-                }
-                */
-                //  CPUがstateを更新
-                op.run(registers, memory, haltState)
-            } else {
-                4
-            }
-
-            // emulator.Timer
-            if (timer.tick(cycleCount)) {
-                memory.enableInterruptFlag(0b100)
-            }
-
-            totalCycleCount += cycleCount
-
-            fun incrementLY() {
-                state.memory.LY++
-                if (state.memory.LYC == state.memory.LY && state.lcdStatusData.lycIntSelected) {
-                    memory.enableInterruptFlag(0b10)
-                }
-                totalCycleCount %= 456L
-            }
-
-            // TODO Mode2, 3の間はOAMにアクセスできない
-            if (state.ppuMode == PpuMode.MODE2 && totalCycleCount >= 80L) {
-                state.ppuMode = PpuMode.MODE3
-            } else if (state.ppuMode == PpuMode.MODE3 && totalCycleCount >= 80L + 170L) {
-                state.ppuMode = PpuMode.MODE0
-                if (state.lcdStatusData.modeSelected[PpuMode.MODE0]!!) {
-                    memory.enableInterruptFlag(0b10)
-                }
-                startDrawingScanLine(state.memory.LY, state.ppuDebugParams) {
-                    drawScanlineInViewport(
-                        memory,
-                        state.memory.LY,
-                        state.windowInternalLineCounter,
-                        { state.windowInternalLineCounter++ },
-                        state.ppuDebugParams,
-                        it
-                    )
-                }
-            } else if (state.ppuMode == PpuMode.MODE0 && totalCycleCount >= 80L + 170L + 206L) {
-                incrementLY()
-
-                if (state.memory.LY == 144) {
-                    state.ppuMode = PpuMode.MODE1 // VBLANK
-                    memory.enableInterruptFlag(0b1)
-                    if (state.lcdStatusData.modeSelected[PpuMode.MODE1]!!) {
-                        memory.enableInterruptFlag(0b10)
-                    }
-                    state.windowInternalLineCounter = 0
-                } else {
-                    state.ppuMode = PpuMode.MODE2
-                    if (state.lcdStatusData.modeSelected[PpuMode.MODE2]!!) {
-                        memory.enableInterruptFlag(0b10)
-                    }
-                }
-            } else if (state.ppuMode == PpuMode.MODE1 && totalCycleCount >= 456L) {
-                incrementLY()
-
-                if (state.memory.LY == 154) {
-                    state.ppuMode = PpuMode.MODE2
-                    if (state.lcdStatusData.modeSelected[PpuMode.MODE2]!!) {
-                        memory.enableInterruptFlag(0b10)
-                    }
-                    state.memory.LY = 0
-                }
-            }
-
-            //  APUがstate.memory.AUDIO領域を見て音を出す
-            //  割り込みがあったらコールバックを実行
+        for (i in 0 until maxLoopCount) {
+            step()
         }
     }
 }

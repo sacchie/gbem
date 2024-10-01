@@ -1,6 +1,5 @@
 plugins {
     kotlin("jvm") version "1.9.0"
-    application
 }
 
 group = "gbem"
@@ -25,8 +24,4 @@ tasks.test {
 
 kotlin { // Extension for easy setup
     jvmToolchain(11) // Target version of generated JVM bytecode. See 7️⃣
-}
-
-application {
-    mainClass.set("MainKt")
 }
