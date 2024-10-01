@@ -41,5 +41,5 @@ jobs:
       - uses: dorny/test-reporter@v1
         with:
           name: Test Results
-          path: build/test-results/**/*.xml
+          path: gbem-lib/build/test-results/**/*.xml
           reporter: java-junit
