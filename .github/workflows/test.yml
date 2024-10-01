@@ -34,8 +34,8 @@ jobs:
             cpu_instrs/individual/
 
       - run: |
-          mkdir -p src/test/resources
-          cp -vR test-roms/cpu_instrs/individual/*.gb src/test/resources/
+          mkdir -p gbem-lib/src/test/resources
+          cp -vR test-roms/cpu_instrs/individual/*.gb gbem-lib/src/test/resources/
       - run: ./gradlew test --info
 
       - uses: dorny/test-reporter@v1
